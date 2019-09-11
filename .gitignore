@@ -1,0 +1,4 @@
+.vscode/*
+brainspy_instruments.egg-info/*
+build/*
+dist/*

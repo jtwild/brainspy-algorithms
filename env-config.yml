@@ -1,0 +1,14 @@
+name: bspy-instr
+dependencies:
+   - python=3.6
+   - ipython
+   - pip
+   - pip:
+     - numpy
+     - visa
+     - pyserial
+     - qcodes
+     - pyqtgraph
+     - matplotlib
+     - PyQt5
+     - nidaqmx
