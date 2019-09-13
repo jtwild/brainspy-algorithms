@@ -397,14 +397,14 @@ if __name__ == '__main__':
 
     CONFIG_DICT['platform'] = PLATFORM    # Dictionary containing all variables for the platform
 
-    ga = GA(CONFIG_DICT)
+    OPTIMIZER = GA(CONFIG_DICT)
 
-    inputs = [[-1., 0.4, -1., 0.4, -0.8, 0.2], [-1., -1., 0.4, 0.4, 0., 0.]]
-    targets = [1, 1, 0, 0, 1, 1]
+    INPUTS = [[-1., 0.4, -1., 0.4, -0.8, 0.2], [-1., -1., 0.4, 0.4, 0., 0.]]
+    TARGETS = [1, 1, 0, 0, 1, 1]
 
-    best_genome, best_output, max_fitness, accuracy = ga.optimize(inputs, targets)
+    BEST_GENOME, BEST_OUTPUT, MAX_FITNESS, ACCURACY = OPTIMIZER.optimize(INPUTS, TARGETS)
 
     plt.figure()
-    plt.plot(best_output)
-    plt.title(f'Best output for target {targets}')
+    plt.plot(BEST_OUTPUT)
+    plt.title(f'Best output for target {TARGETS}')
     plt.show()
