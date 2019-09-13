@@ -1,7 +1,7 @@
-import torch
-from torch.autograd import Variable
+""" The accelerator class enables to statically access the accelerator (CUDA or CPU)
+ that is used in the computer. The aim is to support both platforms seemlessly. """
 
-""" The accelerator class enables to statically access the accelerator (CUDA or CPU) that is used in the computer. The aim is to support both platforms seemlessly. """
+import torch
 
 
 class TorchUtils:
@@ -10,10 +10,13 @@ class TorchUtils:
 
     @staticmethod
     def set_force_cpu(force):
+        """ Enable setting the force CPU option for computers with an old CUDA version,
+        where torch detects that there is cuda, but the version is too old to be compatible. """
         TorchUtils.force_cpu = force
 
     @staticmethod
     def get_accelerator_type():
+        """ Consistently returns the accelerator type for torch. """
         if torch.cuda.is_available() and not TorchUtils.force_cpu:
             return 'cuda'
         else:
@@ -21,11 +24,12 @@ class TorchUtils:
 
     @staticmethod
     def get_data_type():
-        """It consistently returns the adequate data format for either CPU or CUDA. When the input force_cpu is activated, it will only create variables for the """
+        """It consistently returns the adequate data format for either CPU or CUDA.
+        When the input force_cpu is activated, it will only create variables for the """
         if TorchUtils.get_accelerator_type() == 'cuda':
             return torch.cuda.FloatTensor
-        else:
-            return torch.FloatTensor
+
+        return torch.FloatTensor
 
     # _ANS = type.__func__()
     # _ANS = data_type.__func__()
@@ -33,48 +37,49 @@ class TorchUtils:
     @staticmethod
     def format_torch(data):
         """Enables to create a torch variable with a consistent accelerator type and data type."""
-        return Variable(data.type(TorchUtils.get_data_type())).to(device=TorchUtils.get_accelerator_type())
+        return torch.Variable(
+            data.type(TorchUtils.get_data_type())).to(device=TorchUtils.get_accelerator_type())
 
     # _ANS = format_torch.__func__()
 
     @staticmethod
     def format_numpy(data):
-        """Enables to create a torch variable from numpy with a consistent accelerator type and 
+        """Enables to create a torch variable from numpy with a consistent accelerator type and
         data type."""
         return TorchUtils.format_torch(torch.from_numpy(data))
 
     @staticmethod
-    def load_torch_model(self, data_dir, eval=True):
+    def load_torch_model(data_dir, eval_mode=True):
         """Loads a pytorch model from a directory string."""
         model = torch.load(data_dir, map_location=TorchUtils.get_accelerator_type())
-        if eval:
+        if eval_mode:
             model.eval()
 
-    def load_torch_model(self, data_dir):
+    # def load_torch_model(self, data_dir):
 
-        print('Loading the model from ' + data_dir)
-        self.ttype = torch.FloatTensor
-        if torch.cuda.is_available():
-            state_dic = torch.load(data_dir)
-            self.ttype = torch.cuda.FloatTensor
-        else:
-            state_dic = torch.load(data_dir, map_location='cpu')
+    #     print('Loading the model from ' + data_dir)
+    #     self.ttype = torch.FloatTensor
+    #     if torch.cuda.is_available():
+    #         state_dic = torch.load(data_dir)
+    #         self.ttype = torch.cuda.FloatTensor
+    #     else:
+    #         state_dic = torch.load(data_dir, map_location='cpu')
 
-        # move info key from state_dic to self
-        self.info = state_dic['info']
-        print(f'Meta-info: \n {self.info.keys()}')
-        state_dic.pop('info')
+    #     # move info key from state_dic to self
+    #     self.info = state_dic['info']
+    #     print(f'Meta-info: \n {self.info.keys()}')
+    #     state_dic.pop('info')
 
-        self.D_in = self.info['D_in']
-        self.D_out = self.info['D_out']
-        self.hidden_sizes = self.info['hidden_sizes']
+    #     self.D_in = self.info['D_in']
+    #     self.D_out = self.info['D_out']
+    #     self.hidden_sizes = self.info['hidden_sizes']
 
-        self._contruct_model()
-        self.model.load_state_dict(state_dic)
+    #     self._contruct_model()
+    #     self.model.load_state_dict(state_dic)
 
-        if isinstance(list(net.model.parameters())[-1], torch.FloatTensor):
-            self.itype = torch.LongTensor
-        else:
-            self.itype = torch.cuda.LongTensor
-            self.model.cuda()
-        self.model.eval()
+    #     if isinstance(list(net.model.parameters())[-1], torch.FloatTensor):
+    #         self.itype = torch.LongTensor
+    #     else:
+    #         self.itype = torch.cuda.LongTensor
+    #         self.model.cuda()
+    #     self.model.eval()

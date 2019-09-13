@@ -18,7 +18,8 @@ from bspyalgo.utils.pytorch import TorchUtils
 # TODO: Add simulation platform
 # TODO: Target wave form as argument can be left out if output dimension is known internally
 
-# %% Chip platform to measure the current output from voltage configurations of disordered NE systems
+# %% Chip platform to measure the current output from
+# voltage configurations of disordered NE systems
 
 
 def get_platform(platform_configs):
@@ -45,22 +46,23 @@ class SingleChip:
         pass
 
     def optimize(self, inputs_wfm, gene_pool, target_wfm):
+        '''Optimisation function of the platform '''
         pass
 
 # %% NN platform using models loaded form staNNet
 
 
 class SingleChipSimulationNN:
-    '''Platform which simulates a single boron-doped silicon chip using a 
+    '''Platform which simulates a single boron-doped silicon chip using a
     torch-based neural network. '''
 
     def __init__(self, platform_dict):
         # Import required packages
         self.torch = importlib.import_module('torch')
-        self.staNNet = importlib.import_module('SkyNEt.modules.Nets.staNNet').staNNet
+        # self.staNNet = importlib.import_module('SkyNEt.modules.Nets.staNNet').staNNet
 
         # Initialize NN
-        self.net = self.staNNet(platform_dict['path2NN'])
+        # self.net = self.staNNet(platform_dict['path2NN'])
 
         # Set parameters
         self.amplification = self.net.info['amplification']
@@ -78,23 +80,22 @@ class SingleChipSimulationNN:
             self.trafo_indx = None
             self.trafo = lambda x, y: x  # define trafo as identity
 
-    def optimize(self, inputs_wfm, genePool, target_wfm):
-        genomes = len(genePool)
+    def optimize(self, inputs_wfm, gene_pool, target_wfm):
+        '''Optimisation function of the platform '''
+        genomes = len(gene_pool)
         output_popul = np.zeros((genomes, target_wfm.shape[-1]))
 
         for j in range(genomes):
-            # Set the input scaling
-            # inputs_wfm.shape -> (nr-inputs,nr-time-steps)
-            x = self.trafo(inputs_wfm, genePool[j, self.trafo_indx])
-
             # Feed input to NN
             # target_wfm.shape, genePool.shape --> (time-steps,) , (nr-genomes,nr-genes)
-            g = np.ones_like(target_wfm)[:, np.newaxis] * genePool[j, self.control_indx, np.newaxis].T
-            g_index = np.delete(np.arange(self.nn_input_dim), self.input_indx)
+            control_voltage_genes = np.ones_like(target_wfm)[:, np.newaxis] * gene_pool[j, self.control_indx, np.newaxis].T
+            control_voltage_genes_index = np.delete(np.arange(self.nn_input_dim), self.input_indx)
             # g.shape,x.shape --> (time-steps,nr-CVs) , (input-dim, time-steps)
-            x_dummy = np.empty((g.shape[0], self.nn_input_dim))  # dims of input (time-steps)xD_in
-            x_dummy[:, self.input_indx] = x.T
-            x_dummy[:, g_index] = g
+            x_dummy = np.empty((control_voltage_genes.shape[0], self.nn_input_dim))  # dims of input (time-steps)xD_in
+            # Set the input scaling
+            # inputs_wfm.shape -> (nr-inputs,nr-time-steps)
+            x_dummy[:, self.input_indx] = self.trafo(inputs_wfm, gene_pool[j, self.trafo_indx]).T
+            x_dummy[:, control_voltage_genes_index] = control_voltage_genes
             inputs = TorchUtils.format_numpy(x_dummy)
             output = self.net.outputs(inputs)
             output_popul[j] = output
@@ -105,10 +106,13 @@ class SingleChipSimulationNN:
 
 
 class SingleChipSimulationKMC:
+    '''Platform which simulates a single boron-doped silicon chip using kinetic Monte Carlo. '''
+
     def __init__(self, platform_dict):
         pass
 
     def optimize(self, inputs_wfm, gene_pool, target_wfm):
+        '''Optimisation function of the platform '''
         pass
 
 
@@ -116,15 +120,15 @@ class SingleChipSimulationKMC:
 if __name__ == '__main__':
 
     # Define platform
-    platform = {}
-    platform['path2NN'] = r'../test/NN_test/checkpoint3000_02-07-23h47m.pt'
-    platform['in_list'] = [0, 5, 6]  # indices of NN input
-    platform['control_indx'] = np.arange(4)  # indices of gene array
+    PLATFORM = {}
+    PLATFORM['path2NN'] = r'../test/NN_test/checkpoint3000_02-07-23h47m.pt'
+    PLATFORM['in_list'] = [0, 5, 6]  # indices of NN input
+    PLATFORM['control_indx'] = np.arange(4)  # indices of gene array
 
-    nn = SingleChipSimulationNN(platform)
+    SIMULATION = SingleChipSimulationNN(PLATFORM)
 
-    out = nn.optimize(np.array([[0.3, 0.5, 0], [0.3, 0.5, 0], [0.3, 0.5, 0]]),
-                      np.array([[0.1, -0.5, 0.33, -1.2], [0.1, -0.5, 0.33, -1.2]]),
-                      np.array([1, 1, 1]))
+    OUTPUT = SIMULATION.optimize(np.array([[0.3, 0.5, 0], [0.3, 0.5, 0], [0.3, 0.5, 0]]),
+                                 np.array([[0.1, -0.5, 0.33, -1.2], [0.1, -0.5, 0.33, -1.2]]),
+                                 np.array([1, 1, 1]))
 
-    print(f'nn output: \n {out}')
+    print(f'nn output: \n {OUTPUT}')
