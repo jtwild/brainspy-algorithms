@@ -1,7 +1,0 @@
-name: bspy-algo
-dependencies:
-   - python=3.6
-   - ipython
-   - pip
-   - pip:
-     - git+https://github.com/ualegre/brainspy-instruments
