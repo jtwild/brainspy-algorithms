@@ -8,7 +8,7 @@ import time
 import random
 import numpy as np
 
-from bspyalgo.utils.waveform import generate_waveform
+from bspyinstr.utils.waveform import generate_waveform
 from bspyalgo.platforms.chooser import get_platform
 from bspyalgo.algorithms.genetic.core.fitness import choose_fitness_function
 from bspyalgo.algorithms.genetic.core.classifier import perceptron

@@ -4,4 +4,4 @@ dependencies:
    - ipython
    - pip
    - pip:
-     - git+https://github.com/ualegre/brainspy-instruments
+     - git+https://github.com/BraiNEdarwin/brainspy-instruments.git
