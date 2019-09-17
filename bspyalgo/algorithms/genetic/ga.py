@@ -8,9 +8,6 @@ import time
 import random
 import numpy as np
 
-#import pdb
-#import logging
-#import sys
 from bspyalgo.utils.waveform import generate_waveform
 from bspyalgo.platforms.chooser import get_platform
 from bspyalgo.algorithms.genetic.core.fitness import choose_fitness_function
@@ -61,14 +58,13 @@ class GA:
         self.lengths = config_dict['lengths']       # Length of data in the waveform
         self.slopes = config_dict['slopes']         # Length of ramping from one value to the next
         # Parameters to define task
-        self.fitness_function = config_dict['fitness']  # String determining fitness funtion
+        # self.fitness_function_type =   # String determining fitness funtion
         # Define platform and fitness function
         self.platform = get_platform(config_dict['platform'])
-        self.fitness = choose_fitness_function(self.fitness_function)
-
+        self.fitness_function = choose_fitness_function(config_dict['fitness_function_type'])
         # Internal parameters and variables
         self.stop_thr = 0.9
-        #----- observers ------#
+        # ----- observers ------#
         self._observers = set()
         self._next_state = None
         self.ga_observer = GAObserver(config_dict)
@@ -127,12 +123,12 @@ class GA:
         # Evolution loop
         for gen in range(self.generations):
             start = time.time()
-            #-------------- Evaluate population (user specific) --------------#
+            # -------------- Evaluate population (user specific) --------------#
             self.outputs = self.platform.optimize(self.inputs_wfm,
                                                   self.pool,
                                                   self.target_wfm)
-            self.fitness = self.fitness(self.outputs, self.target_wfm)
-            #-----------------------------------------------------------------#
+            self.fitness = self.fitness_function(self.outputs, self.target_wfm)
+            # -----------------------------------------------------------------#
             # Status print
             max_fit = max(self.fitness)
             print(f"Highest fitness: {max_fit}")
@@ -142,7 +138,7 @@ class GA:
 
             end = time.time()
             print("Generation nr. " + str(gen + 1) + " completed; took " + str(end - start) + " sec.")
-            if self.StopCondition(max_fit):
+            if self.stop_condition(max_fit):
                 print('--- final saving ---')
                 self.ga_observer.save()
                 break
@@ -187,24 +183,25 @@ class GA:
                     chosen[i] = chosen[i] - 1
             # The individual with the highest fitness score is given as input first
             if chosen[i] < chosen[i + 1]:
-                self.newpool[index_newpool, :] = self.Crossover_BLXab(self.pool[chosen[i], :], self.pool[chosen[i + 1], :])
+                self.newpool[index_newpool, :] = self.crossover_blxab(self.pool[chosen[i], :], self.pool[chosen[i + 1], :])
             else:
-                self.newpool[index_newpool, :] = self.Crossover_BLXab(self.pool[chosen[i + 1], :], self.pool[chosen[i], :])
+                self.newpool[index_newpool, :] = self.crossover_blxab(self.pool[chosen[i + 1], :], self.pool[chosen[i], :])
         # The mutation rate is updated based on the generation counter
-        self.UpdateMutation(gen)
+        self.update_mutation(gen)
         # Every genome, except the partition[0] genomes are mutated
-        self.Mutation()
-        self.RemoveDuplicates()
+        self.mutation()
+        self.remove_duplicates()
         self.pool = self.newpool.copy()
 
-#%% ##########################################################################
-    ###################### Methods defining evolution ########################
-    ##########################################################################
- # ------------------------------------------------------------------------------
+# %%
+#    ##########################################################################
+#    ##################### Methods defining evolution #########################
+#    ##########################################################################
+# ------------------------------------------------------------------------------
 
     def universal_sampling(self):
         '''
-        Sampling method: Stochastic universal sampling returns the chosen 'parents' 
+        Sampling method: Stochastic universal sampling returns the chosen 'parents'
         '''
         no_genomes = 2 * self.partition[1]
         chosen = []
@@ -228,7 +225,7 @@ class GA:
     def linear_rank(self):
         '''
         Assigning probabilities: Linear ranking scheme used for stochastic universal sampling method.
-        It returns an array with the probability that a genome will be chosen. 
+        It returns an array with the probability that a genome will be chosen.
         The first probability corresponds to the genome with the highest fitness etc.
         '''
         maximum = 1.5
@@ -237,9 +234,7 @@ class GA:
         probability = (minimum + ((maximum - minimum) * (rank - 1) / (self.genomes - 1))) / self.genomes
         return probability[::-1]
 
- # ------------------------------------------------------------------------------
-
-    def Crossover_BLXab(self, parent1, parent2):
+    def crossover_blxab(self, parent1, parent2):
         '''
         Crossover method: Blend alpha beta crossover returns a new genome (voltage combination)
         from two parents. Here, parent 1 has a higher fitness than parent 2
@@ -249,13 +244,13 @@ class GA:
         beta = 0.4
         maximum = np.maximum(parent1, parent2)
         minimum = np.minimum(parent1, parent2)
-        I = (maximum - minimum)
+        diff_maxmin = (maximum - minimum)
         offspring = np.zeros((parent1.shape))
         for i in range(len(parent1)):
             if parent1[i] > parent2[i]:
-                offspring[i] = np.random.uniform(minimum[i] - I[i] * beta, maximum[i] + I[i] * alpha)
+                offspring[i] = np.random.uniform(minimum[i] - diff_maxmin[i] * beta, maximum[i] + diff_maxmin[i] * alpha)
             else:
-                offspring[i] = np.random.uniform(minimum[i] - I[i] * alpha, maximum[i] + I[i] * beta)
+                offspring[i] = np.random.uniform(minimum[i] - diff_maxmin[i] * alpha, maximum[i] + diff_maxmin[i] * beta)
         for i in range(0, self.genes):
             if offspring[i] < self.generange[i][0]:
                 offspring[i] = self.generange[i][0]
@@ -263,21 +258,17 @@ class GA:
                 offspring[i] = self.generange[i][1]
         return offspring
 
- # ------------------------------------------------------------------------------
-
-    def UpdateMutation(self, gen):
+    def update_mutation(self, gen):
         '''
-        Dynamic parameter control of mutation rate: This formula updates the mutation 
+        Dynamic parameter control of mutation rate: This formula updates the mutation
         rate based on the generation counter
         '''
         pm_inv = 2 + 5 / (self.generations - 1) * gen
         self.mutationrate = 0.625 / pm_inv
 
- # ------------------------------------------------------------------------------
-
-    def Mutation(self):
+    def mutation(self):
         '''
-        Mutate all genes but the first partition[0] with a triangular 
+        Mutate all genes but the first partition[0] with a triangular
         distribution in generange with mode=gene to be mutated.
         '''
         np.random.seed(seed=None)
@@ -292,12 +283,10 @@ class GA:
                 mutatedpool[:, i] = np.random.triangular(self.generange[i][0], self.newpool[self.partition[0]:, i], self.generange[i][1])
         self.newpool[self.partition[0]:] = ((np.ones(self.newpool[self.partition[0]:].shape) - mask) * self.newpool[self.partition[0]:] + mask * mutatedpool)
 
-  # ------------------------------------------------------------------------------
-
-    def RemoveDuplicates(self):
+    def remove_duplicates(self):
         np.random.seed(seed=None)
         '''
-        Check the entire pool for any duplicate genomes and replace them by 
+        Check the entire pool for any duplicate genomes and replace them by
         the genome put through a triangular distribution
         '''
         for i in range(self.genomes):
@@ -309,32 +298,31 @@ class GA:
                         else:
                             self.newpool[j][k] = self.generange[k][0]
 
-
-# ------------------------------------------------------------------------------
     # Methods required for evaluating the opposite pool
 
-    def Opposite(self):
+    def opposite(self):
         '''
-        Define opposite pool  
+        Define opposite pool
         '''
         opposite_pool = np.zeros((self.genomes, self.genes))
         for i in range(0, self.genes):
             opposite_pool[:, i] = self.generange[i][0] + self.generange[i][1] - self.pool[:, i]
         self.opposite_pool = opposite_pool
 
-    def setNewPool(self, indices):
+    def set_new_pool(self, indices):
         '''
-        After evaluating the opposite pool, set the new pool. 
+        After evaluating the opposite pool, set the new pool.
         '''
         for k in range(len(indices)):
             if indices[k][0]:
                 self.pool[k, :] = self.opposite_pool[k, :]
 
-#%% #################################################
-    ########### Helper Methods ######################
-    #################################################
+# %%
+#    #################################################
+#    ########### Helper Methods ######################
+#    #################################################
 
-    def StopCondition(self, max_fit):
+    def stop_condition(self, max_fit):
         best = self.outputs[self.fitness == max_fit][0]
         corr = self.corr(best)
         print(f"Correlation of fittest genome: {corr}")
@@ -362,7 +350,10 @@ class GA:
         print(f'Input signals have length {samples}')
 #        time_arr = np.linspace(0, samples/self.fs, samples)
         w_ampl = [1, 0] * len(inputs[0])
-        w_lengths = [self.lengths[0], self.slopes[0]] * len(inputs[0])
+        if(type(self.lengths) is int and type(self.slopes) is int):
+            w_lengths = [self.lengths, self.slopes] * len(inputs[0])
+        else:
+            w_lengths = [self.lengths[0], self.slopes[0]] * len(inputs[0])
         weight_wvfrm = generate_waveform(w_ampl, w_lengths)
         bool_weights = [x == 1 for x in weight_wvfrm[:samples]]
 
@@ -378,8 +369,10 @@ if __name__ == '__main__':
     PLATFORM['modality'] = 'single_chip_simulation_nn'
     # platform['path2NN'] = r'D:\UTWENTE\PROJECTS\DARWIN\Data\Mark\MSE_n_d10w90_200ep_lr1e-3_b1024_b1b2_0.90.75.pt'
     # platform['path2NN'] = r'/home/hruiz/Documents/PROJECTS/DARWIN/Data_Darwin/Devices/Marks_Data/April_2019/MSE_n_d10w90_200ep_lr1e-3_b1024_b1b2_0.90.75.pt'
-    PLATFORM['path2NN'] = r'/home/unai/Documents/3-programming/boron-doped-silicon-chip-simulation/checkpoint3000_02-07-23h47m.pt'
+    PLATFORM['torch_model_path'] = r'/home/unai/Documents/3-programming/boron-doped-silicon-chip-simulation/checkpoint3000_02-07-23h47m.pt'
     PLATFORM['amplification'] = 10.
+    PLATFORM['input_indices'] = [0, 5, 6]  # indices of NN input
+    PLATFORM['control_indices'] = np.arange(4)  # indices of gene array
 
     CONFIG_DICT = {}
     CONFIG_DICT['partition'] = [5] * 5  # Partitions of population
@@ -390,16 +383,16 @@ if __name__ == '__main__':
     CONFIG_DICT['mutationrate'] = 0.1
 
     # Parameters to define target waveforms
-    CONFIG_DICT['lengths'] = [80]     # Length of data in the waveform
-    CONFIG_DICT['slopes'] = [0]        # Length of ramping from one value to the next
+    CONFIG_DICT['lengths'] = 80     # Length of data in the waveform
+    CONFIG_DICT['slopes'] = 0        # Length of ramping from one value to the next
     # Parameters to define task
-    CONFIG_DICT['fitness'] = 'corrsig_fit'  # 'corr_fit'
+    CONFIG_DICT['fitness_function_type'] = 'corrsig_fit'  # 'corr_fit'
 
     CONFIG_DICT['platform'] = PLATFORM    # Dictionary containing all variables for the platform
 
     OPTIMIZER = GA(CONFIG_DICT)
 
-    INPUTS = [[-1., 0.4, -1., 0.4, -0.8, 0.2], [-1., -1., 0.4, 0.4, 0., 0.]]
+    INPUTS = [[-1., 0.4, -1., 0.4, -0.8, 0.2], [-1., -1., 0.4, 0.4, 0., 0.], [-1., 1.4, -0.2, 0.1, -0.33, 0.2]]
     TARGETS = [1, 1, 0, 0, 1, 1]
 
     BEST_GENOME, BEST_OUTPUT, MAX_FITNESS, ACCURACY = OPTIMIZER.optimize(INPUTS, TARGETS)
