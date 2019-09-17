@@ -1,3 +1,10 @@
+bspyalgo/__pycache__/*
+bspyalgo/algorithms/__pycache__/*
+bspyalgo/algorithms/genetic/__pycache__/*
+bspyalgo/algorithms/genetic/core/__pycache__/*
+bspyalgo/algorithms/gradient/__pycache__/*
+bspyalgo/platforms/__pycache__/*
+bspyalgo/utils/__pycache__/*
 .vscode/*
 brainspy_instruments.egg-info/*
 build/*

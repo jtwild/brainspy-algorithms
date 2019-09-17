@@ -1,7 +1,8 @@
-""" The accelerator class enables to statically access the accelerator (CUDA or CPU)
- that is used in the computer. The aim is to support both platforms seemlessly. """
+""" The accelerator class enables to statically access the accelerator
+(CUDA or CPU) that is used in the computer. The aim is to support both platforms seemlessly. """
 
 import torch
+import torch.nn as nn
 
 
 class TorchUtils:
@@ -37,7 +38,7 @@ class TorchUtils:
     @staticmethod
     def format_torch(data):
         """Enables to create a torch variable with a consistent accelerator type and data type."""
-        return torch.Variable(
+        return torch.Tensor(
             data.type(TorchUtils.get_data_type())).to(device=TorchUtils.get_accelerator_type())
 
     # _ANS = format_torch.__func__()
@@ -48,38 +49,66 @@ class TorchUtils:
         data type."""
         return TorchUtils.format_torch(torch.from_numpy(data))
 
-    @staticmethod
-    def load_torch_model(data_dir, eval_mode=True):
+
+class TorchModel:
+
+    def load_model(self, data_dir, eval_mode=True):
         """Loads a pytorch model from a directory string."""
-        model = torch.load(data_dir, map_location=TorchUtils.get_accelerator_type())
+        self.state_dict = torch.load(data_dir, map_location=TorchUtils.get_accelerator_type())
+        self.state_dict['info'] = self._info_consistency_check(self.state_dict['info'])
+        self._build_model(self.state_dict['info'])
+
+        # self.model.load_state_dict(self.state_dict)
+
+        if TorchUtils.get_accelerator_type() == 'cuda':
+            self.model.cuda()
         if eval_mode:
-            model.eval()
+            self.model.eval()
 
-    # def load_torch_model(self, data_dir):
+    def get_model_info(self):
+        return self.state_dict['info']
 
-    #     print('Loading the model from ' + data_dir)
-    #     self.ttype = torch.FloatTensor
-    #     if torch.cuda.is_available():
-    #         state_dic = torch.load(data_dir)
-    #         self.ttype = torch.cuda.FloatTensor
-    #     else:
-    #         state_dic = torch.load(data_dir, map_location='cpu')
+    def make_inference_as_numpy(self, inputs):
+        inputs_torch = TorchUtils.format_numpy(inputs)
+        outputs = self.model(inputs_torch)
+        return outputs.detach().numpy()
 
-    #     # move info key from state_dic to self
-    #     self.info = state_dic['info']
-    #     print(f'Meta-info: \n {self.info.keys()}')
-    #     state_dic.pop('info')
+    def _info_consistency_check(self, model_info):
+        """ It checks if the model info follows the expected standards.
+        If it does not follow the standards, it forces the model to follow them and throws an exception. """
+        # if type(model_info['activation']) is str:
+        #    model_info['activation'] = nn.ReLU()
+        if not ('D_in' in model_info):
+            model_info['D_in'] = len(model_info['offset'])
+            print('WARNING: The model loaded does not define the input dimension as expected. Changed it to default value: %d.' % len(model_info['offset']))
+        if not ('D_out' in model_info):
+            model_info['D_out'] = 1
+            print('WARNING: The model loaded does not define the output dimension as expected. Changed it to default value: %d.' % 1)
+        if not ('hidden_sizes' in model_info):
+            model_info['hidden_sizes'] = [90] * 6
+            print('WARNING: The model loaded does not define the input dimension as expected. Changed it to default value: %d.' % 90)
+        return model_info
 
-    #     self.D_in = self.info['D_in']
-    #     self.D_out = self.info['D_out']
-    #     self.hidden_sizes = self.info['hidden_sizes']
+    def _get_activation(self, activation):
+        if type(activation) is str:
+            return nn.ReLU()
+        return activation
 
-    #     self._contruct_model()
-    #     self.model.load_state_dict(state_dic)
+    def _build_model(self, model_info):
 
-    #     if isinstance(list(net.model.parameters())[-1], torch.FloatTensor):
-    #         self.itype = torch.LongTensor
-    #     else:
-    #         self.itype = torch.cuda.LongTensor
-    #         self.model.cuda()
-    #     self.model.eval()
+        hidden_sizes = model_info['hidden_sizes']
+        input_layer = nn.Linear(model_info['D_in'], hidden_sizes[0])
+        activ_function = self._get_activation(model_info['activation'])
+        output_layer = nn.Linear(hidden_sizes[-1], model_info['D_out'])
+        modules = [input_layer, activ_function]
+
+        hidden_layers = zip(hidden_sizes[:-1], hidden_sizes[1:])
+        for h1, h2 in hidden_layers:
+            hidden_layer = nn.Linear(h1, h2)
+            modules.append(hidden_layer)
+            modules.append(activ_function)
+
+        modules.append(output_layer)
+        self.model = nn.Sequential(*modules)
+
+        print('Model built with the following modules: \n', modules)

@@ -13,6 +13,7 @@ import importlib
 import numpy as np
 
 from bspyalgo.utils.pytorch import TorchUtils
+from bspyalgo.utils.pytorch import TorchModel
 
 # TODO: Add chip platform
 # TODO: Add simulation platform
@@ -63,14 +64,17 @@ class SingleChipSimulationNN:
 
         # Initialize NN
         # self.net = self.staNNet(platform_dict['path2NN'])
-
+        self.torch_model = TorchModel()
+        self.torch_model.load_model(platform_dict['torch_model_path'], eval_mode=True)
         # Set parameters
-        self.amplification = self.net.info['amplification']
-        self.input_indx = platform_dict['in_list']
-        self.nn_input_dim = len(self.net.info['amplitude'])
-        self.nr_control_genes = self.nn_input_dim - len(self.input_indx)
+        self.amplification = self.torch_model.get_model_info()['amplification']
+
+        self.nn_input_dim = len(self.torch_model.get_model_info()['amplitude'])
+        self.input_indices = platform_dict['input_indices']
+        self.nr_control_genes = self.nn_input_dim - len(self.input_indices)
+
         print(f'Initializing NN platform with {self.nr_control_genes} control genes')
-        self.control_indx = platform_dict['control_indx']
+        self.control_indx = platform_dict['control_indices']
         assert self.nr_control_genes == len(self.control_indx)
 
         if platform_dict.__contains__('trafo_indx'):
@@ -89,19 +93,19 @@ class SingleChipSimulationNN:
             # Feed input to NN
             # target_wfm.shape, genePool.shape --> (time-steps,) , (nr-genomes,nr-genes)
             control_voltage_genes = np.ones_like(target_wfm)[:, np.newaxis] * gene_pool[j, self.control_indx, np.newaxis].T
-            control_voltage_genes_index = np.delete(np.arange(self.nn_input_dim), self.input_indx)
+            control_voltage_genes_index = np.delete(np.arange(self.nn_input_dim), self.input_indices)
             # g.shape,x.shape --> (time-steps,nr-CVs) , (input-dim, time-steps)
             x_dummy = np.empty((control_voltage_genes.shape[0], self.nn_input_dim))  # dims of input (time-steps)xD_in
             # Set the input scaling
             # inputs_wfm.shape -> (nr-inputs,nr-time-steps)
-            x_dummy[:, self.input_indx] = self.trafo(inputs_wfm, gene_pool[j, self.trafo_indx]).T
+            x_dummy[:, self.input_indices] = self.trafo(inputs_wfm, gene_pool[j, self.trafo_indx]).T
             x_dummy[:, control_voltage_genes_index] = control_voltage_genes
-            inputs = TorchUtils.format_numpy(x_dummy)
-            output = self.net.outputs(inputs)
-            output_popul[j] = output
+
+            output = self.torch_model.make_inference_as_numpy(x_dummy)
+
+            output_popul[j] = output[:, 0]
 
         return self.amplification * np.asarray(output_popul)
-
 # %% Simulation platform for physical MC simulations of devices
 
 
@@ -121,9 +125,9 @@ if __name__ == '__main__':
 
     # Define platform
     PLATFORM = {}
-    PLATFORM['path2NN'] = r'../test/NN_test/checkpoint3000_02-07-23h47m.pt'
-    PLATFORM['in_list'] = [0, 5, 6]  # indices of NN input
-    PLATFORM['control_indx'] = np.arange(4)  # indices of gene array
+    PLATFORM['torch_model_path'] = r'/home/unai/Documents/3-programming/boron-doped-silicon-chip-simulation/checkpoint3000_02-07-23h47m.pt'
+    PLATFORM['input_indices'] = [0, 5, 6]  # indices of NN input
+    PLATFORM['control_indices'] = np.arange(4)  # indices of gene array
 
     SIMULATION = SingleChipSimulationNN(PLATFORM)
 
