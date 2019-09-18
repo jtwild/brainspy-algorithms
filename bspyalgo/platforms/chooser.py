@@ -12,7 +12,6 @@ Created on Wed Aug 21 11:34:14 2019
 import importlib
 import numpy as np
 
-from bspyalgo.utils.pytorch import TorchUtils
 from bspyalgo.utils.pytorch import TorchModel
 
 # TODO: Add chip platform
@@ -65,7 +64,8 @@ class SingleChipSimulationNN:
         # Initialize NN
         # self.net = self.staNNet(platform_dict['path2NN'])
         self.torch_model = TorchModel()
-        self.torch_model.load_model(platform_dict['torch_model_path'], eval_mode=True)
+        self.torch_model.load_model(platform_dict['torch_model_path'])
+        self.torch_model.model.eval()
         # Set parameters
         self.amplification = self.torch_model.get_model_info()['amplification']
 
@@ -101,11 +101,11 @@ class SingleChipSimulationNN:
             x_dummy[:, self.input_indices] = self.trafo(inputs_wfm, gene_pool[j, self.trafo_indx]).T
             x_dummy[:, control_voltage_genes_index] = control_voltage_genes
 
-            output = self.torch_model.make_inference_as_numpy(x_dummy)
+            output = self.torch_model.inference_in_nanoamperes(x_dummy)
 
             output_popul[j] = output[:, 0]
 
-        return self.amplification * np.asarray(output_popul)
+        return output_popul
 # %% Simulation platform for physical MC simulations of devices
 
 

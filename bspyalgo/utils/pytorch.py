@@ -8,6 +8,7 @@ import torch.nn as nn
 class TorchUtils:
     """ A class to consistently manage declarations of torch variables for CUDA and CPU. """
     force_cpu = False
+    data_type = 'float'
 
     @staticmethod
     def set_force_cpu(force):
@@ -16,27 +17,44 @@ class TorchUtils:
         TorchUtils.force_cpu = force
 
     @staticmethod
+    def set_data_type(data_type):
+        """ Enable setting the force CPU option for computers with an old CUDA version,
+        where torch detects that there is cuda, but the version is too old to be compatible. """
+        TorchUtils.data_type = data_type
+
+    @staticmethod
     def get_accelerator_type():
         """ Consistently returns the accelerator type for torch. """
         if torch.cuda.is_available() and not TorchUtils.force_cpu:
             return 'cuda'
-        else:
-            return 'cpu'
+        return 'cpu'
 
     @staticmethod
     def get_data_type():
         """It consistently returns the adequate data format for either CPU or CUDA.
         When the input force_cpu is activated, it will only create variables for the """
         if TorchUtils.get_accelerator_type() == 'cuda':
-            return torch.cuda.FloatTensor
-
-        return torch.FloatTensor
-
-    # _ANS = type.__func__()
-    # _ANS = data_type.__func__()
+            return TorchUtils._get_cuda_data_type()
+        return TorchUtils._get_cpu_data_type()
 
     @staticmethod
-    def format_torch(data):
+    def _get_cuda_data_type():
+        if TorchUtils.data_type == 'float':
+            return torch.cuda.FloatTensor
+        if TorchUtils.data_type == 'long':
+            return torch.cuda.LongTensor
+
+    @staticmethod
+    def _get_cpu_data_type():
+        if TorchUtils.data_type == 'float':
+            return torch.FloatTensor
+        if TorchUtils.data_type == 'long':
+            return torch.LongTensor
+        # _ANS = type.__func__()
+        # _ANS = data_type.__func__()
+
+    @staticmethod
+    def get_tensor_from_list(data):
         """Enables to create a torch variable with a consistent accelerator type and data type."""
         return torch.Tensor(
             data.type(TorchUtils.get_data_type())).to(device=TorchUtils.get_accelerator_type())
@@ -44,15 +62,19 @@ class TorchUtils:
     # _ANS = format_torch.__func__()
 
     @staticmethod
-    def format_numpy(data):
+    def get_tensor_from_numpy(data):
         """Enables to create a torch variable from numpy with a consistent accelerator type and
         data type."""
-        return TorchUtils.format_torch(torch.from_numpy(data))
+        return TorchUtils.get_tensor_from_list(torch.from_numpy(data))
+
+    @staticmethod
+    def get_numpy_from_tensor(data):
+        return data.detach().numpy()
 
 
 class TorchModel:
 
-    def load_model(self, data_dir, eval_mode=True):
+    def load_model(self, data_dir):
         """Loads a pytorch model from a directory string."""
         self.state_dict = torch.load(data_dir, map_location=TorchUtils.get_accelerator_type())
         self.state_dict['info'] = self._info_consistency_check(self.state_dict['info'])
@@ -62,16 +84,18 @@ class TorchModel:
 
         if TorchUtils.get_accelerator_type() == 'cuda':
             self.model.cuda()
-        if eval_mode:
-            self.model.eval()
 
     def get_model_info(self):
         return self.state_dict['info']
 
-    def make_inference_as_numpy(self, inputs):
-        inputs_torch = TorchUtils.format_numpy(inputs)
+    def inference_in_nanoamperes(self, inputs):
+        outputs = self.inference_as_numpy(inputs)
+        return outputs * self.get_model_info()['amplification']
+
+    def inference_as_numpy(self, inputs):
+        inputs_torch = TorchUtils.get_tensor_from_numpy(inputs)
         outputs = self.model(inputs_torch)
-        return outputs.detach().numpy()
+        return TorchUtils.get_numpy_from_tensor(outputs)
 
     def _info_consistency_check(self, model_info):
         """ It checks if the model info follows the expected standards.
