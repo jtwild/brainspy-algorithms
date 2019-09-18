@@ -9,8 +9,8 @@ import random
 import numpy as np
 
 from bspyinstr.utils.waveform import generate_waveform
-from bspyalgo.platforms.chooser import get_platform
 from bspyalgo.algorithms.genetic.core.fitness import choose_fitness_function
+from bspyalgo.algorithms.genetic.core.evaluation import choose_evaluation_function
 from bspyalgo.algorithms.genetic.core.classifier import perceptron
 from bspyalgo.algorithms.genetic.core.observer import GAObserver
 # TODO: Implement Plotter
@@ -48,6 +48,18 @@ class GA:
 
     def __init__(self, config_dict):
 
+        # Defines the GA optimisation function according to its platform
+        self.evaluator = choose_evaluation_function(config_dict['ga_evaluation_configs'])
+
+        # Loads the fitness function
+        self.fitness_function = choose_fitness_function(config_dict['fitness_function_type'])
+
+        # ----- observers ------#
+        self._observers = set()
+        self._next_state = None
+        self.ga_observer = GAObserver(config_dict)
+        self.attach(self.ga_observer)
+
         # Define GA hyper-parameters
         self.genes = config_dict['genes']           # Nr of genes include CVs and affine trafo of input
         self.generange = config_dict['generange']   # Voltage range of CVs
@@ -60,17 +72,11 @@ class GA:
         # Parameters to define task
         # self.fitness_function_type =   # String determining fitness funtion
         # Define platform and fitness function
-        self.platform = get_platform(config_dict['platform'])
-        self.fitness_function = choose_fitness_function(config_dict['fitness_function_type'])
+
         # Internal parameters and variables
         self.stop_thr = 0.9
-        # ----- observers ------#
-        self._observers = set()
-        self._next_state = None
-        self.ga_observer = GAObserver(config_dict)
-        self.attach(self.ga_observer)
-
 # %% Methods implementing observer pattern for Saver and Plotter
+
     def attach(self, observer):
         # register subject in observer
         observer.subject = self
@@ -124,9 +130,9 @@ class GA:
         for gen in range(self.generations):
             start = time.time()
             # -------------- Evaluate population (user specific) --------------#
-            self.outputs = self.platform.optimize(self.inputs_wfm,
-                                                  self.pool,
-                                                  self.target_wfm)
+            self.outputs = self.evaluator.evaluate_population(self.inputs_wfm,
+                                                              self.pool,
+                                                              self.target_wfm)
             self.fitness = self.fitness_function(self.outputs, self.target_wfm)
             # -----------------------------------------------------------------#
             # Status print
@@ -358,46 +364,3 @@ class GA:
         bool_weights = [x == 1 for x in weight_wvfrm[:samples]]
 
         return inputs_wvfrm, bool_weights  # , time_arr
-
-
-# %% MAIN
-if __name__ == '__main__':
-
-    import matplotlib.pyplot as plt
-    # Define platform
-    PLATFORM = {}
-    PLATFORM['modality'] = 'single_chip_simulation_nn'
-    # platform['path2NN'] = r'D:\UTWENTE\PROJECTS\DARWIN\Data\Mark\MSE_n_d10w90_200ep_lr1e-3_b1024_b1b2_0.90.75.pt'
-    # platform['path2NN'] = r'/home/hruiz/Documents/PROJECTS/DARWIN/Data_Darwin/Devices/Marks_Data/April_2019/MSE_n_d10w90_200ep_lr1e-3_b1024_b1b2_0.90.75.pt'
-    PLATFORM['torch_model_path'] = r'/home/unai/Documents/3-programming/boron-doped-silicon-chip-simulation/checkpoint3000_02-07-23h47m.pt'
-    PLATFORM['amplification'] = 10.
-    PLATFORM['input_indices'] = [0, 5, 6]  # indices of NN input
-    PLATFORM['control_indices'] = np.arange(4)  # indices of gene array
-
-    CONFIG_DICT = {}
-    CONFIG_DICT['partition'] = [5] * 5  # Partitions of population
-    # Voltage range of CVs in V
-    CONFIG_DICT['generange'] = [[-1.2, 0.6], [-1.2, 0.6], [-1.2, 0.6], [-0.7, 0.3], [-0.7, 0.3], [1, 1]]
-    CONFIG_DICT['genes'] = len(CONFIG_DICT['generange'])    # Nr of genes
-    CONFIG_DICT['genomes'] = sum(CONFIG_DICT['partition'])  # Nr of individuals in population
-    CONFIG_DICT['mutationrate'] = 0.1
-
-    # Parameters to define target waveforms
-    CONFIG_DICT['lengths'] = 80     # Length of data in the waveform
-    CONFIG_DICT['slopes'] = 0        # Length of ramping from one value to the next
-    # Parameters to define task
-    CONFIG_DICT['fitness_function_type'] = 'corrsig_fit'  # 'corr_fit'
-
-    CONFIG_DICT['platform'] = PLATFORM    # Dictionary containing all variables for the platform
-
-    OPTIMIZER = GA(CONFIG_DICT)
-
-    INPUTS = [[-1., 0.4, -1., 0.4, -0.8, 0.2], [-1., -1., 0.4, 0.4, 0., 0.], [-1., 1.4, -0.2, 0.1, -0.33, 0.2]]
-    TARGETS = [1, 1, 0, 0, 1, 1]
-
-    BEST_GENOME, BEST_OUTPUT, MAX_FITNESS, ACCURACY = OPTIMIZER.optimize(INPUTS, TARGETS)
-
-    plt.figure()
-    plt.plot(BEST_OUTPUT)
-    plt.title(f'Best output for target {TARGETS}')
-    plt.show()

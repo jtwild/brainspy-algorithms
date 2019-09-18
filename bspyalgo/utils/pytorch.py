@@ -99,16 +99,17 @@ class TorchModel:
 
     def _info_consistency_check(self, model_info):
         """ It checks if the model info follows the expected standards.
-        If it does not follow the standards, it forces the model to follow them and throws an exception. """
+        If it does not follow the standards, it forces the model to
+        follow them and throws an exception. """
         # if type(model_info['activation']) is str:
         #    model_info['activation'] = nn.ReLU()
-        if not ('D_in' in model_info):
+        if 'D_in' not in model_info:
             model_info['D_in'] = len(model_info['offset'])
             print('WARNING: The model loaded does not define the input dimension as expected. Changed it to default value: %d.' % len(model_info['offset']))
-        if not ('D_out' in model_info):
+        if 'D_out' not in model_info:
             model_info['D_out'] = 1
             print('WARNING: The model loaded does not define the output dimension as expected. Changed it to default value: %d.' % 1)
-        if not ('hidden_sizes' in model_info):
+        if 'hidden_sizes' not in model_info:
             model_info['hidden_sizes'] = [90] * 6
             print('WARNING: The model loaded does not define the input dimension as expected. Changed it to default value: %d.' % 90)
         return model_info
@@ -127,8 +128,8 @@ class TorchModel:
         modules = [input_layer, activ_function]
 
         hidden_layers = zip(hidden_sizes[:-1], hidden_sizes[1:])
-        for h1, h2 in hidden_layers:
-            hidden_layer = nn.Linear(h1, h2)
+        for h_1, h_2 in hidden_layers:
+            hidden_layer = nn.Linear(h_1, h_2)
             modules.append(hidden_layer)
             modules.append(activ_function)
 
