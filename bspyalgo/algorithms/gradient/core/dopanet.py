@@ -19,12 +19,14 @@ class DNPU(nn.Module):
     '''
 
     def __init__(self, in_list,
-                 path=r'../../test/NN_test/checkpoint3000_02-07-23h47m.pt'):
+                 path=r'./tmp/NN_model/checkpoint3000_02-07-23h47m.pt'):
         super(DNPU, self).__init__()
 
         self.in_list = in_list
         self.nr_inputs = len(in_list)
-        self.net = TorchModel.load_model(path).to(DEVICE)
+        self.torch_model = TorchModel()
+        self.torch_model.load_model(path)
+        self.net = self.torch_model.network.to(DEVICE)
         # Freeze parameters
         for params in self.net.parameters():
             params.requires_grad = False
