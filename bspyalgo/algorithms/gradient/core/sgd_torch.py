@@ -36,39 +36,39 @@ import torch
 from bspyalgo.utils.io import save
 
 
-def trainer(data, network, SGD_CONFIGS, loss_fn=torch.nn.MSELoss()):
+def trainer(data, network, config_dict, loss_fn=torch.nn.MSELoss()):
 
     # set configurations
-    if "seed" in SGD_CONFIGS.keys():
-        torch.manual_seed(SGD_CONFIGS['seed'])
-        print('The torch RNG is seeded with ', SGD_CONFIGS['seed'])
+    if "seed" in config_dict.keys():
+        torch.manual_seed(config_dict['seed'])
+        print('The torch RNG is seeded with ', config_dict['seed'])
 
-    if "betas" in SGD_CONFIGS.keys():
+    if "betas" in config_dict.keys():
         optimizer = torch.optim.Adam(network.parameters(),
-                                     lr=SGD_CONFIGS['learning_rate'],
-                                     betas=SGD_CONFIGS["betas"])
-        print("Set betas to values: ", {SGD_CONFIGS["betas"]})
+                                     lr=config_dict['learning_rate'],
+                                     betas=config_dict["betas"])
+        print("Set betas to values: ", {config_dict["betas"]})
     else:
         optimizer = torch.optim.Adam(network.parameters(),
-                                     lr=SGD_CONFIGS['learning_rate'])
+                                     lr=config_dict['learning_rate'])
     print('Prediction using ADAM optimizer')
 
     # Define variables
     x_train, y_train = data[0]
     x_val, y_val = data[1]
-    costs = np.zeros((SGD_CONFIGS['nr_epochs'], 2))  # training and validation costs per epoch
+    costs = np.zeros((config_dict['nr_epochs'], 2))  # training and validation costs per epoch
 
-    for epoch in range(SGD_CONFIGS['nr_epochs']):
+    for epoch in range(config_dict['nr_epochs']):
 
         network.train()
         permutation = torch.randperm(x_train.size()[0])  # Permute indices
 
-        for mb in range(0, len(permutation), SGD_CONFIGS['batch_size']):
+        for mb in range(0, len(permutation), config_dict['batch_size']):
 
             # Get prediction
-            indices = permutation[mb:mb + SGD_CONFIGS['batch_size']]
-            x = x_train[indices]
-            y_pred = network(x)
+            indices = permutation[mb:mb + config_dict['batch_size']]
+            x_mb = x_train[indices]
+            y_pred = network(x_mb)
             # GD step
             if 'regularizer' in dir(network):
                 loss = loss_fn(y_pred, y_train[indices]) + network.regularizer()
@@ -82,17 +82,17 @@ def trainer(data, network, SGD_CONFIGS, loss_fn=torch.nn.MSELoss()):
         network.eval()
         samples = len(x_val)
         get_indices = torch.randperm(len(x_train))[:samples]
-        x = x_train[get_indices]
-        prediction = network(x)
+        x_sampled = x_train[get_indices]
+        prediction = network(x_sampled)
         target = y_train[get_indices]
         costs[epoch, 0] = loss_fn(prediction, target).item()
         # Evaluate Validation error
         prediction = network(x_val)
         costs[epoch, 1] = loss_fn(prediction, y_val).item()
 
-        if 'save_dir' in SGD_CONFIGS.keys() and epoch % save_interval == 0:
-            save(SGD_CONFIGS['save_dir'], f'checkpoint_epoch{epoch}.pt',
-                 'torch', SGD_CONFIGS, model=network)
+        if 'save_dir' in config_dict.keys() and epoch % SGD_CONFIGS['save_interval'] == 0:
+            save(config_dict['save_dir'], f'checkpoint_epoch{epoch}.pt',
+                 'torch', config_dict, model=network)
 
         if epoch % 10 == 0:
             print('Epoch:', epoch,
@@ -118,48 +118,50 @@ if __name__ == '__main__':
 
     import matplotlib.pyplot as plt
     import numpy as np
-    from dopanet import DNPU
-
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    from bspyalgo.algorithms.gradient.core.dopanet import DNPU
+    # Get device
+    DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    # Create data
     in_list = [0, 3]
     x = 0.5 * np.random.randn(10, len(in_list))
-    inp_train = torch.Tensor(x).to(device)
-    t_train = torch.Tensor(5. * np.ones(10)).to(device)  # torch.Tensor(np.random.randn(10,1)).to(device)
+    inp_train = torch.Tensor(x).to(DEVICE)
+    t_train = torch.Tensor(5. * np.ones(10)).to(DEVICE)
     x = 0.5 * np.random.randn(4, len(in_list))
-    inp_val = torch.Tensor(x).to(device)
-    t_val = torch.Tensor(5. * np.ones(4)).to(device)  # torch.Tensor(np.random.randn(4,1)).to(device)
-    data = [(inp_train, t_train), (inp_val, t_val)]
-
+    inp_val = torch.Tensor(x).to(DEVICE)
+    t_val = torch.Tensor(5. * np.ones(4)).to(DEVICE)
+    DATA = [(inp_train, t_train), (inp_val, t_val)]
+    # Start the node
     node = DNPU(in_list)
-
-    loss_array = []
-
-    start_params = [p.clone().detach() for p in node.parameters()]
-
+    START_PARAMS = [p.clone().detach() for p in node.parameters()]
+    # Make config dict
     SGD_CONFIGS = {}
+    SGD_CONFIGS['nr_epochs'] = 3000,
     SGD_CONFIGS['batch_size'] = len(t_train),
-    learning_rate = 3e-5,
-    save_dir = '../../test/NN_test/',
-    save_interval = np.inf
-    # NOTE: the values above are for the purpose of the toy problem here and should not be used elsewere.
-    # The default values in the SGD_CONFIGS should be:
-    ####         learning_rate = 1e-4,
-    # nr_epochs = 3000, batch_size = 128, save_dir = 'tmp/...',
-    ####         save_interval = 10
-    costs = trainer(data, node, SGD_CONFIGS)
+    SGD_CONFIGS['learning_rate'] = 3e-5
+    SGD_CONFIGS['save_dir'] = 'tmp/NN_test/'
+    SGD_CONFIGS['save_interval'] = np.inf
+    # NOTE: the values above are for the purpose of the toy problem here and
+    #       should not be used elsewere.
+    # The default values in the config_dict should be:
+    # learning_rate = 1e-4
+    # batch_size = 128, save_dir = 'tmp/...',
+    # save_interval = 10
 
-    out = node(inp_val)
-    end_params = [p.clone().detach() for p in node.parameters()]
-    print("CV params at the beginning: \n ", start_params[0])
-    print("CV params at the end: \n", end_params[0])
-    print("Example params at the beginning: \n", start_params[-1][:8])
-    print("Example params at the end: \n", end_params[-1][:8])
-    print("Length of elements in node.parameters(): \n", [len(p) for p in end_params])
-    print("and their shape: \n", [p.shape for p in end_params])
-    print(f'OUTPUT: {out.data.cpu()}')
+    # Train the node
+    COSTS = trainer(DATA, node, SGD_CONFIGS)
+
+    OUTPUT = node(inp_val).data.cpu()
+    END_PARAMS = [p.clone().detach() for p in node.parameters()]
+    print("CV params at the beginning: \n ", START_PARAMS[0])
+    print("CV params at the end: \n", END_PARAMS[0])
+    print("Example params at the beginning: \n", START_PARAMS[-1][:8])
+    print("Example params at the end: \n", END_PARAMS[-1][:8])
+    print("Length of elements in node.parameters(): \n", [len(p) for p in END_PARAMS])
+    print("and their shape: \n", [p.shape for p in END_PARAMS])
+    print(f'OUTPUT: {OUTPUT}')
 
     plt.figure()
-    plt.plot(costs)
+    plt.plot(COSTS)
     plt.title("Loss per epoch")
     plt.legend(["Training", "Validation"])
     plt.show()
