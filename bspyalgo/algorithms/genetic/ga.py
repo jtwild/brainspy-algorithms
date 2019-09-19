@@ -61,9 +61,10 @@ class GA:
         self.attach(self.ga_observer)
 
         # Define GA hyper-parameters
-        self.genes = config_dict['genes']           # Nr of genes include CVs and affine trafo of input
+        # Nr of genes include CVs and affine trafo of input
         self.generange = config_dict['generange']   # Voltage range of CVs
-        self.genomes = config_dict['genomes']       # Nr of individuals in population
+        self.genes = len(config_dict['generange'])
+        self.genomes = sum(config_dict['partition'])       # Nr of individuals in population
         self.partition = config_dict['partition']   # Partitions of population
         self.mutationrate = config_dict['mutationrate']
         # Parameters to define target waveforms
@@ -164,6 +165,7 @@ class GA:
         accuracy, _, _ = perceptron(y, trgt)
         print('Accuracy: ', accuracy)
         print('===============================================================')
+
         return best_genome, best_output, max_fitness, accuracy
 
 # %% Step to next generation
