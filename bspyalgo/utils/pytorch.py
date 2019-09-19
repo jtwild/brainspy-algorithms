@@ -73,24 +73,29 @@ class TorchUtils:
 
 
 class TorchModel:
+    """
+        The TorchModel class is used to manage together a torch model and its state dictionary. The usage is expected to be as follows
+        mymodel = TorchModel()
+        mymodel.load_model('my_path/my_model.pt')
+        mymodel.model
+        mymodel.state_dict
+    """
 
     def load_model(self, data_dir):
         """Loads a pytorch model from a directory string."""
         self.state_dict = torch.load(data_dir, map_location=TorchUtils.get_accelerator_type())
-        self.state_dict['info'] = self._info_consistency_check(self.state_dict['info'])
-        self._build_model(self.state_dict['info'])
+        self.info_dict = self._info_consistency_check(self.state_dict['info'])
+        del self.state_dict['info']
 
-        # self.model.load_state_dict(self.state_dict)
+        self._build_model(self.info_dict)
+        self.model.load_state_dict(self.state_dict)
 
         if TorchUtils.get_accelerator_type() == 'cuda':
             self.model.cuda()
 
-    def get_model_info(self):
-        return self.state_dict['info']
-
     def inference_in_nanoamperes(self, inputs):
         outputs = self.inference_as_numpy(inputs)
-        return outputs * self.get_model_info()['amplification']
+        return outputs * self.info_dict['amplification']
 
     def inference_as_numpy(self, inputs):
         inputs_torch = TorchUtils.get_tensor_from_numpy(inputs)
@@ -127,7 +132,7 @@ class TorchModel:
         output_layer = nn.Linear(hidden_sizes[-1], model_info['D_out'])
         modules = [input_layer, activ_function]
 
-        hidden_layers = zip(hidden_sizes[:-1], hidden_sizes[1:])
+        hidden_layers = zip(hidden_sizes[: -1], hidden_sizes[1:])
         for h_1, h_2 in hidden_layers:
             hidden_layer = nn.Linear(h_1, h_2)
             modules.append(hidden_layer)
