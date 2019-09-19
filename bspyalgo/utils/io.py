@@ -1,5 +1,23 @@
+'''
+Library that handles saving data results from the execution of the algorithm.
+'''
+import os
+import time
 import json
 import codecs
+
+import numpy as np
+
+
+def save(mode, configs, path, filename, **kwargs):
+    save_configs(configs, os.path.join(path, 'configs.json'))
+    if mode != 'configs':
+        if mode == 'numpy':
+            np.savez(os.path.join(path, filename), **kwargs)
+        elif mode == 'torch':
+            raise NotImplementedError(f"Saving results for torch has still not been implemented")
+        else:
+            raise NotImplementedError(f"Mode {mode} is not recognised. Please choose a value between 'numpy', 'torch' and 'configs'.")
 
 
 def load_configs(file):
@@ -9,6 +27,22 @@ def load_configs(file):
 
 def save_configs(configs, file):
     json.dump(configs, open(file, 'w'))
+
+
+def create_directory(path):
+    '''
+    This function checks if there exists a directory filepath+datetime_name.
+    If not it will create it and return this path.
+    '''
+    if not os.path.exists(path):
+        os.makedirs(path)
+    return path
+
+
+def create_directory_timestamp(path, name):
+    datetime = time.strftime("%Y_%m_%d_%H%M%S")
+    path = path + datetime + '_' + name
+    return create_directory(path)
 
 
 if __name__ == '__main__':

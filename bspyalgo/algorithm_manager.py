@@ -9,7 +9,7 @@ Created on Wed Aug 21 11:34:14 2019
 
 @author: HCRuiz
 """
-
+import logging
 from bspyalgo.algorithms.genetic.ga import GA
 
 # TODO: Add chip platform
@@ -21,6 +21,8 @@ from bspyalgo.algorithms.genetic.ga import GA
 
 
 def get_algorithm(algorithm_type):
+
+    logging.basicConfig(filename='myapp.log', level=logging.INFO)
     if algorithm_type == 'genetic':
         configs = load_configs('./configs/ga_configs.json')
         return GA(configs)
@@ -35,7 +37,7 @@ def get_algorithm(algorithm_type):
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
     from bspyalgo.utils.pytorch import TorchUtils
-    from bspyalgo.utils.configs import load_configs
+    from bspyalgo.utils.io import load_configs
 
     TorchUtils.set_force_cpu(True)
 
