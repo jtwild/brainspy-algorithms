@@ -42,9 +42,9 @@ if __name__ == '__main__':
     INPUTS = [[-1., 0.4, -1., 0.4, -0.8, 0.2], [-1., -1., 0.4, 0.4, 0., 0.], [-1., 1.4, -0.2, 0.1, -0.33, 0.2]]
     TARGETS = [1, 1, 0, 0, 1, 1]
 
-    BEST_GENOME, BEST_OUTPUT, MAX_FITNESS, ACCURACY = get_algorithm('genetic').optimize(INPUTS, TARGETS)
+    RESULT = get_algorithm('genetic').optimize(INPUTS, TARGETS)
 
     plt.figure()
-    plt.plot(BEST_OUTPUT)
+    plt.plot(RESULT['best_output'])
     plt.title(f'Best output for target {TARGETS}')
     plt.show()
