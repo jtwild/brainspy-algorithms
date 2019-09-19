@@ -7,7 +7,8 @@ Created on Wed Aug 28 11:14:23 2019
 import os
 import pickle
 import numpy as np
-from bspyalgo.utils.save import create_save_directory, save_experiment
+from bspyalgo.utils.io import create_directory_timestamp
+from bspyalgo.utils.io import save
 
 
 class GAObserver:
@@ -18,41 +19,41 @@ class GAObserver:
 
     def update(self, next_sate):
         gen = next_sate['generation']
-        self.geneArray[gen, :, :] = next_sate['genes']
-        self.outputArray[gen, :, :] = next_sate['outputs']
-        self.fitnessArray[gen, :] = next_sate['fitness']
+        self.gene_array[gen, :, :] = next_sate['genes']
+        self.output_array[gen, :, :] = next_sate['outputs']
+        self.fitness_array[gen, :] = next_sate['fitness']
         if gen % 5 == 0:
             # Save generation
             print('--- checkpoint ---')
-            self.save()
+            self.save_results()
 
     def reset(self):
         # Define placeholders
-        self.geneArray = np.zeros((self.subject.generations, self.subject.genomes, self.subject.genes))
-        self.outputArray = np.zeros((self.subject.generations, self.subject.genomes, len(self.subject.target_wfm)))
-        self.fitnessArray = -np.inf * np.ones((self.subject.generations, self.subject.genomes))
+        self.gene_array = np.zeros((self.subject.generations, self.subject.genomes, self.subject.genes))
+        self.output_array = np.zeros((self.subject.generations, self.subject.genomes, len(self.subject.target_wfm)))
+        self.fitness_array = -np.inf * np.ones((self.subject.generations, self.subject.genomes))
         # Initialize save directory
-        self.saveDirectory = create_save_directory(
+        self.save_directory = create_directory_timestamp(
             self.subject.savepath,
             self.subject.dirname)
         # Save experiment configurations
         self.config_dict['target'] = self.subject.target_wfm
         self.config_dict['inputs'] = self.subject.inputs_wfm
         self.config_dict['mask'] = self.subject.filter_array
-        with open(os.path.join(self.saveDirectory, 'configs.pkl'), 'wb') as f:
+        with open(os.path.join(self.save_directory, 'configs.pkl'), 'wb') as f:
             pickle.dump(self.config_dict, f)
 
     def judge(self):
-        max_fitness = np.max(self.fitnessArray)
-        ind = np.unravel_index(np.argmax(self.fitnessArray, axis=None), self.fitnessArray.shape)
-        best_genome = self.geneArray[ind]
-        best_output = self.outputArray[ind]
+        max_fitness = np.max(self.fitness_array)
+        ind = np.unravel_index(np.argmax(self.fitness_array, axis=None), self.fitness_array.shape)
+        best_genome = self.gene_array[ind]
+        best_output = self.output_array[ind]
 
         return max_fitness, best_genome, best_output
 
-    def save(self):
-        save_experiment(self.saveDirectory, filename='Results_GA',
-                        geneArray=self.geneArray,
-                        outputArray=self.outputArray,
-                        fitnessArray=self.fitnessArray,
-                        mask=self.subject.filter_array)
+    def save_results(self):
+        save(mode='numpy', configs=self.config_dict, path=self.save_directory + '/ga_results/', filename='result',
+             gene_array=self.gene_array,
+             output_array=self.output_array,
+             fitness_array=self.fitness_array,
+             mask=self.subject.filter_array)
