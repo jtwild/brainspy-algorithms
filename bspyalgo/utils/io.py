@@ -5,6 +5,7 @@ import os
 import time
 import json
 import codecs
+import pickle
 
 import numpy as np
 
@@ -15,10 +16,15 @@ def save(mode, configs, path, filename, **kwargs):
     if mode != 'configs':
         if mode == 'numpy':
             np.savez(os.path.join(path, filename), **kwargs)
+        if mode == 'pickle':
+            if not kwargs['dictionary']:
+                raise ValueError(f"Value dictionary is missing.")
+            else:
+                pickle.dump(kwargs['dictionary'], open(os.path.join(path, filename), "wb"))
         elif mode == 'torch':
             raise NotImplementedError(f"Saving results for torch has still not been implemented")
         else:
-            raise NotImplementedError(f"Mode {mode} is not recognised. Please choose a value between 'numpy', 'torch' and 'configs'.")
+            raise NotImplementedError(f"Mode {mode} is not recognised. Please choose a value between 'numpy', 'torch', 'pickle' and 'configs'.")
 
 
 def load_configs(file):
@@ -30,7 +36,7 @@ def save_configs(configs, file):
     for key in configs:
         if type(configs[key]) is np.ndarray:
             configs[key] = configs[key].tolist()
-    json.dump(configs, open(file, 'w'))
+    json.dump(configs, open(file, 'w'), indent=4)
 
 
 def create_directory(path):
