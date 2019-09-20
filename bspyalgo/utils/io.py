@@ -13,14 +13,15 @@ import numpy as np
 def save(mode, configs, path, filename, **kwargs):
     create_directory(path)
     save_configs(configs, os.path.join(path, 'configs.json'))
+    file_path = os.path.join(path, filename)
     if mode != 'configs':
         if mode == 'numpy':
-            np.savez(os.path.join(path, filename), **kwargs)
+            np.savez(file_path, **kwargs)
         if mode == 'pickle':
             if not kwargs['dictionary']:
                 raise ValueError(f"Value dictionary is missing.")
             else:
-                pickle.dump(kwargs['dictionary'], open(os.path.join(path, filename), "wb"))
+                pickle.dump(kwargs['dictionary'], open(file_path, "wb"))
         elif mode == 'torch':
             """
             Saves the model in given path, all other attributes are saved under
@@ -30,7 +31,7 @@ def save(mode, configs, path, filename, **kwargs):
             kwargs['torch_model'].model.eval()
             state_dic = kwargs['torch_model'].model.state_dict()
             state_dic['info'] = kwargs['torch_model'].info
-            torch.save(state_dic, path + filename)
+            torch.save(state_dic, file_path)
         else:
             raise NotImplementedError(f"Mode {mode} is not recognised. Please choose a value between 'numpy', 'torch', 'pickle' and 'configs'.")
 
@@ -59,7 +60,7 @@ def create_directory(path):
 
 def create_directory_timestamp(path, name):
     datetime = time.strftime("%Y_%m_%d_%H%M%S")
-    path = path + name + '_' + datetime  
+    path = os.path.join(path, name + '_' + datetime)
     return create_directory(path)
 
 
