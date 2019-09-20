@@ -10,6 +10,7 @@ import numpy as np
 
 
 def save(mode, configs, path, filename, **kwargs):
+    create_directory(path)
     save_configs(configs, os.path.join(path, 'configs.json'))
     if mode != 'configs':
         if mode == 'numpy':
