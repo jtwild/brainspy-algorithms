@@ -20,14 +20,14 @@ from bspyalgo.algorithms.genetic.ga import GA
 # voltage configurations of disordered NE systems
 
 
-def get_algorithm(algorithm_type):
+def get_algorithm(algorithm_type, configs_name):
 
     # logging.basicConfig(filename='myapp.log', level=logging.INFO)
     if algorithm_type == 'genetic':
-        configs = load_configs('./configs/ga/ga_configs_template.json')
+        configs = load_configs('./configs/ga/' + configs_name + '.json')
         return GA(configs)
     elif algorithm_type == 'gradient_descent':
-        configs = load_configs('./configs/gd/gd_configs_template.json')
+        configs = load_configs('./configs/gd/' + configs_name + '.json')
         raise NotImplementedError(f"The gradient descent algorithm has still not been implemented.")
     else:
         raise NotImplementedError(f"Algorithm {configs['algorithm']} is not recognised. Please try again with 'genetic' or 'gradient_descent'")
@@ -44,7 +44,7 @@ if __name__ == '__main__':
     INPUTS = [[-1., 0.4, -1., 0.4, -0.8, 0.2], [-1., -1., 0.4, 0.4, 0., 0.], [-1., 1.4, -0.2, 0.1, -0.33, 0.2]]
     TARGETS = [1, 1, 0, 0, 1, 1]
 
-    RESULT = get_algorithm('genetic').optimize(INPUTS, TARGETS)
+    RESULT = get_algorithm('genetic', 'ga_configs_template').optimize(INPUTS, TARGETS)
 
     plt.figure()
     plt.plot(RESULT['best_output'])
