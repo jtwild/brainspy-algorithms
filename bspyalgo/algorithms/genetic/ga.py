@@ -8,7 +8,7 @@ import time
 import random
 import numpy as np
 
-from bspyinstr.utils.waveform import generate_waveform
+from bspyalgo.algorithms.genetic.core.waveforms import WaveformManager
 from bspyalgo.algorithms.genetic.core.fitness import choose_fitness_function
 from bspyalgo.algorithms.genetic.core.evaluation import choose_evaluation_function
 from bspyalgo.algorithms.genetic.core.classifier import perceptron
@@ -47,40 +47,47 @@ class GA:
     '''
 
     def __init__(self, config_dict):
+        self.load_configs(config_dict)
 
-        # Defines the GA optimisation function according to its platform
-        self.evaluator = choose_evaluation_function(config_dict['ga_evaluation_configs'])
+        # Internal parameters and variables
+        self._next_state = None
+        self.stop_thr = 0.9
+# %% Methods implementing observer pattern for Saver and Plotter
 
-        # Loads the fitness function
-        self.fitness_function = choose_fitness_function(config_dict['hyperparameters']['fitness_function_type'])
+    def load_configs(self, config_dict):
+        self.config_dict = config_dict
 
+        self.save_path = config_dict['results_path']
+        self.save_dir = 'OPT'
+
+        self.load_hyperparameters(config_dict)
+        self.load_functions(config_dict)
+        self.load_observer(config_dict)
+        self.load_waveform(config_dict)
+
+    def load_waveform(self, config_dict):
+        self.waveform_mgr = WaveformManager(config_dict['waveform_configs'])
+        self.evaluation_configs = config_dict['ga_evaluation_configs']
+
+    def load_observer(self, config_dict):
         # ----- observers ------#
         self._observers = set()
-        self._next_state = None
         self.ga_observer = GAObserver(config_dict)
         self.attach(self.ga_observer)
 
-        # Define GA hyper-parameters
+    def load_functions(self, config_dict):
+        self.evaluator = choose_evaluation_function(config_dict['ga_evaluation_configs'])
+        self.fitness_function = choose_fitness_function(config_dict['hyperparameters']['fitness_function_type'])
 
+    def load_hyperparameters(self, config_dict):
+        # Define GA hyper-parameters
         self.generange = config_dict['hyperparameters']['generange']   # Voltage range of CVs
         self.genes = len(config_dict['hyperparameters']['generange'])
         self.genomes = sum(config_dict['hyperparameters']['partition'])       # Nr of individuals in population
         self.partition = config_dict['hyperparameters']['partition']   # Partitions of population
         self.mutationrate = config_dict['hyperparameters']['mutationrate']
-
-        self.waveform_configs = config_dict['waveform_configs']
-        self.evaluation_configs = config_dict['ga_evaluation_configs']
-
-        # Parameters to define target waveforms
-        # self.lengths = config_dict['lengths']       # Length of data in the waveform
-        # self.slopes = config_dict['slopes']         # Length of ramping from one value to the next
-        # Parameters to define task
-        # self.fitness_function_type =   # String determining fitness funtion
-        # Define platform and fitness function
-
-        # Internal parameters and variables
-        self.stop_thr = 0.9
-# %% Methods implementing observer pattern for Saver and Plotter
+        self.seed = config_dict['hyperparameters']['seed']
+        self.generations = config_dict['hyperparameters']['epochs']
 
     def attach(self, observer):
         # register subject in observer
@@ -106,23 +113,16 @@ class GA:
         self._notify()
 
 # %% Method implementing evolution
-    def optimize(self, inputs, targets,
-                 epochs=100,
-                 savepath=r'./tmp/output/',
-                 dirname='TEST',
-                 seed=None):
+    def optimize(self, inputs, targets):
 
         assert len(inputs[0]) == len(targets), f'No. of input data {len(inputs)} does not match no. of targets {len(targets)}'
-        np.random.seed(seed=seed)
+        np.random.seed(seed=self.seed)
 
-        self.generations = epochs
         # Initialize target
-        self.target_wfm = self.waveform(targets)
-        # Initialize target
-        self.inputs_wfm, self.filter_array = self.input_waveform(inputs)
+        self.target_wfm = self.waveform_mgr.waveform(targets)
+
+        self.inputs_wfm, self.filter_array = self.waveform_mgr.input_waveform(inputs)
         # Generate filepath and filename for saving
-        self.savepath = savepath
-        self.dirname = dirname
         # reset placeholder arrays and filepath in saviour
         self.ga_observer.reset()
 
@@ -134,24 +134,21 @@ class GA:
         # Evolution loop
         for gen in range(self.generations):
             start = time.time()
-            # -------------- Evaluate population (user specific) --------------#
-            self.outputs = self.evaluator.evaluate_population(self.inputs_wfm,
-                                                              self.pool,
-                                                              self.target_wfm)
+
+            self.outputs = self.evaluator.evaluate_population(self.inputs_wfm, self.pool, self.target_wfm)
             self.fitness = self.fitness_function(self.outputs, self.target_wfm)
-            # -----------------------------------------------------------------#
+
             # Status print
             max_fit = max(self.fitness)
             print(f"Highest fitness: {max_fit}")
 
-            self.next_state = {'generation': gen, 'genes': self.pool,
-                               'outputs': self.outputs, 'fitness': self.fitness}
+            self.next_state = {'generation': gen, 'genes': self.pool, 'outputs': self.outputs, 'fitness': self.fitness}
 
             end = time.time()
             print("Generation nr. " + str(gen + 1) + " completed; took " + str(end - start) + " sec.")
             if self.stop_condition(max_fit):
                 print('--- final saving ---')
-                self.ga_observer.save()
+                self.ga_observer.save_results()
                 break
             # Evolve to the next generation
             self.next_gen(gen)
@@ -347,26 +344,3 @@ class GA:
         x = x[self.filter_array][np.newaxis, :]
         y = self.target_wfm[self.filter_array][np.newaxis, :]
         return np.corrcoef(np.concatenate((x, y), axis=0))[0, 1]
-
-    def waveform(self, data):
-        data_wfrm = generate_waveform(data, self.waveform_configs['lengths'], slopes=self.waveform_configs['slopes'])
-        return np.asarray(data_wfrm)
-
-    def input_waveform(self, inputs):
-        nr_inp = len(inputs)
-        print(f'Input is {nr_inp} dimensional')
-        inp_list = [self.waveform(inputs[i]) for i in range(nr_inp)]
-        inputs_wvfrm = np.asarray(inp_list)
-
-        samples = inputs_wvfrm.shape[-1]
-        print(f'Input signals have length {samples}')
-
-        w_ampl = [1, 0] * len(inputs[0])
-        if(type(self.waveform_configs['lengths']) is int and type(self.waveform_configs['slopes']) is int):
-            w_lengths = [self.waveform_configs['lengths'], self.waveform_configs['slopes']] * len(inputs[0])
-        else:
-            w_lengths = [self.waveform_configs['lengths'][0], self.waveform_configs['slopes'][0]] * len(inputs[0])
-        weight_wvfrm = generate_waveform(w_ampl, w_lengths)
-        bool_weights = [x == 1 for x in weight_wvfrm[:samples]]
-
-        return inputs_wvfrm, bool_weights
