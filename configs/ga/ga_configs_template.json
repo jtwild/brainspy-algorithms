@@ -1,6 +1,5 @@
 {
-  "save_path": "./tmp/output/genetic_algorithm/",
-  "directory": "OPT",
+  "results_path": "./tmp/output/genetic_algorithm/",
   "hyperparameters": {
             "generange": [[-1.2, 0.6], [-1.2, 0.6], [-1.2, 0.6], [-0.7, 0.3], [-0.7, 0.3], [1, 1]],
             "partition": [5, 5, 5, 5, 5],

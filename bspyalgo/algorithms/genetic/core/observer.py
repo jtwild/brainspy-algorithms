@@ -35,7 +35,7 @@ class GAObserver:
         # Initialize save directory
         self.save_directory = create_directory_timestamp(
             self.subject.save_path,
-            self.subject.dir_name)
+            self.subject.save_dir)
         # Save experiment configurations
         self.config_dict['target'] = self.subject.target_wfm
         self.config_dict['inputs'] = self.subject.inputs_wfm
