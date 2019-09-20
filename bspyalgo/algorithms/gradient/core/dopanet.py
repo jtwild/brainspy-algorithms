@@ -14,28 +14,27 @@ from bspyalgo.utils.pytorch import TorchModel
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
-class DNPU(nn.Module):
+class DNPU(TorchModel):
     '''
     '''
 
     def __init__(self, in_list,
                  path=r'./tmp/NN_model/checkpoint3000_02-07-23h47m.pt'):
-        super(DNPU, self).__init__()
+        super().__init__()
 
         self.in_list = in_list
         self.nr_inputs = len(in_list)
-        self.torch_model = TorchModel()
-        self.torch_model.load_model(path)
-        self.net = self.torch_model.network.to(DEVICE)
+        self.load_model(path)
+
         # Freeze parameters
-        for params in self.net.parameters():
+        for params in self.parameters():
             params.requires_grad = False
         # Define learning parameters
-        self.nr_electodes = len(self.net.info['offset'])
+        self.nr_electodes = len(self.info['offset'])
         self.indx_cv = np.delete(np.arange(self.nr_electodes), in_list)
         self.nr_cv = len(self.indx_cv)
-        offset = self.net.info['offset']
-        amplitude = self.net.info['amplitude']
+        offset = self.info['offset']
+        amplitude = self.info['amplitude']
 
         self.min_voltage = offset - amplitude
         self.max_voltage = offset + amplitude
@@ -47,7 +46,7 @@ class DNPU(nn.Module):
         self.bias = nn.Parameter(bias)
         # Set as torch Tensors and send to DEVICE
         self.indx_cv = torch.tensor(self.indx_cv, dtype=torch.int64).to(DEVICE)  # IndexError: tensors used as indices must be long, byte or bool tensors
-        self.amplification = torch.tensor(self.net.info['amplification']).to(DEVICE)
+        self.amplification = torch.tensor(self.info['amplification']).to(DEVICE)
         self.min_voltage = torch.tensor(self.min_voltage, dtype=torch.float32).to(DEVICE)
         self.max_voltage = torch.tensor(self.max_voltage, dtype=torch.float32).to(DEVICE)
 
@@ -60,7 +59,7 @@ class DNPU(nn.Module):
 #        print(inp.dtype,self.indx_cv.dtype,expand_cv.dtype)
         inp[:, self.indx_cv] = expand_cv
 
-        return self.net.model(inp) * self.amplification
+        return self.model(inp) * self.amplification
 
     def regularizer(self):
         low = self.min_voltage[self.indx_cv]
@@ -76,13 +75,13 @@ class DNPU(nn.Module):
 if __name__ == '__main__':
 
     import matplotlib.pyplot as plt
-    x = 0.5 * np.random.randn(1, 3)
+    x = 0.5 * np.random.randn(10, 2)
     x = torch.Tensor(x).to(DEVICE)
-    target = torch.Tensor([5]).to(DEVICE)
+    target = torch.Tensor([[5]] * 10).to(DEVICE)
 
     node = DNPU([0, 4])
     loss = nn.MSELoss()
-    optimizer = torch.optim.SGD([{'params': node.parameters()}], lr=0.0001)
+    optimizer = torch.optim.SGD([{'params': node.parameters()}], lr=0.00005)
 
     LOSS_LIST = []
     CHANGE_PARAMS_NET = []
@@ -112,7 +111,7 @@ if __name__ == '__main__':
     print("Example params at the end: \n", END_PARAMS[-1][:8])
     print("Length of elements in node.parameters(): \n", [len(p) for p in END_PARAMS])
     print("and their shape: \n", [p.shape for p in END_PARAMS])
-    print(f'OUTPUT: {out.data.cpu()}')
+    print(f'OUTPUT: \n {out.data.cpu()}')
 
     plt.figure()
     plt.plot(LOSS_LIST)
