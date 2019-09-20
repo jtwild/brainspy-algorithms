@@ -9,7 +9,7 @@ Created on Wed Aug 21 11:34:14 2019
 
 @author: HCRuiz
 """
-import logging
+# import logging
 from bspyalgo.algorithms.genetic.ga import GA
 
 # TODO: Add chip platform
@@ -22,12 +22,12 @@ from bspyalgo.algorithms.genetic.ga import GA
 
 def get_algorithm(algorithm_type):
 
-    logging.basicConfig(filename='myapp.log', level=logging.INFO)
+    # logging.basicConfig(filename='myapp.log', level=logging.INFO)
     if algorithm_type == 'genetic':
-        configs = load_configs('./configs/ga_configs.json')
+        configs = load_configs('./configs/ga/ga_configs_template.json')
         return GA(configs)
     elif algorithm_type == 'gradient_descent':
-        configs = load_configs('./configs/gd_configs.json')
+        configs = load_configs('./configs/gd/gd_configs_template.json')
         raise NotImplementedError(f"The gradient descent algorithm has still not been implemented.")
     else:
         raise NotImplementedError(f"Algorithm {configs['algorithm']} is not recognised. Please try again with 'genetic' or 'gradient_descent'")

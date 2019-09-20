@@ -10,6 +10,7 @@ import numpy as np
 
 
 def save(mode, configs, path, filename, **kwargs):
+    create_directory(path)
     save_configs(configs, os.path.join(path, 'configs.json'))
     if mode != 'configs':
         if mode == 'numpy':
@@ -26,6 +27,9 @@ def load_configs(file):
 
 
 def save_configs(configs, file):
+    for key in configs:
+        if type(configs[key]) is np.ndarray:
+            configs[key] = configs[key].tolist()
     json.dump(configs, open(file, 'w'))
 
 
