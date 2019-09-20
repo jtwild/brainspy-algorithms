@@ -8,11 +8,11 @@ import time
 import random
 import numpy as np
 
-from bspyalgo.algorithms.genetic.core.waveforms import WaveformManager
 from bspyalgo.algorithms.genetic.core.fitness import choose_fitness_function
 from bspyalgo.algorithms.genetic.core.evaluation import choose_evaluation_function
-from bspyalgo.algorithms.genetic.core.classifier import perceptron
-from bspyalgo.algorithms.genetic.core.observer import GAObserver
+from bspyalgo.utils.io import create_directory_timestamp
+from bspyalgo.algorithms.genetic.core.results import GAResults
+from bspyalgo.utils.io import save
 # TODO: Implement Plotter
 
 
@@ -51,29 +51,16 @@ class GA:
 
         # Internal parameters and variables
         self._next_state = None
-        self.stop_thr = 0.9
+
 # %% Methods implementing observer pattern for Saver and Plotter
 
     def load_configs(self, config_dict):
         self.config_dict = config_dict
-
         self.save_path = config_dict['results_path']
         self.save_dir = 'OPT'
-
         self.load_hyperparameters(config_dict)
         self.load_functions(config_dict)
-        self.load_observer(config_dict)
-        self.load_waveform(config_dict)
-
-    def load_waveform(self, config_dict):
-        self.waveform_mgr = WaveformManager(config_dict['waveform_configs'])
-        self.evaluation_configs = config_dict['ga_evaluation_configs']
-
-    def load_observer(self, config_dict):
-        # ----- observers ------#
-        self._observers = set()
-        self.ga_observer = GAObserver(config_dict)
-        self.attach(self.ga_observer)
+        self.stop_thr = config_dict['stop_threshold']
 
     def load_functions(self, config_dict):
         self.evaluator = choose_evaluation_function(config_dict['ga_evaluation_configs'])
@@ -81,36 +68,17 @@ class GA:
 
     def load_hyperparameters(self, config_dict):
         # Define GA hyper-parameters
-        self.generange = config_dict['hyperparameters']['generange']   # Voltage range of CVs
-        self.genes = len(config_dict['hyperparameters']['generange'])
-        self.genomes = sum(config_dict['hyperparameters']['partition'])       # Nr of individuals in population
+        self.generange = config_dict['hyperparameters']['generange']   # Voltage range of CVs      # Nr of individuals in population
         self.partition = config_dict['hyperparameters']['partition']   # Partitions of population
+
         self.mutationrate = config_dict['hyperparameters']['mutationrate']
         self.seed = config_dict['hyperparameters']['seed']
         self.generations = config_dict['hyperparameters']['epochs']
 
-    def attach(self, observer):
-        # register subject in observer
-        observer.subject = self
-        # add observer to observers list
-        self._observers.add(observer)
-
-    def detach(self, observer):  # not needed but for completeness
-        observer.subject = None
-        self._observers.discard(observer)
-
-    def _notify(self):
-        for obs in self._observers:
-            obs.update(self._next_state)
-
-    @property
-    def next_state(self):
-        return self._next_state
-
-    @next_state.setter
-    def next_state(self, arg):
-        self._next_state = arg
-        self._notify()
+        self.genes = len(self.generange)
+        self.genomes = sum(self.partition)
+        self.config_dict['hyperparameters']['genes'] = self.genes
+        self.config_dict['hyperparameters']['genomes'] = self.genomes
 
 # %% Method implementing evolution
     def optimize(self, inputs, targets):
@@ -118,13 +86,8 @@ class GA:
         assert len(inputs[0]) == len(targets), f'No. of input data {len(inputs)} does not match no. of targets {len(targets)}'
         np.random.seed(seed=self.seed)
 
-        # Initialize target
-        self.target_wfm = self.waveform_mgr.waveform(targets)
-
-        self.inputs_wfm, self.filter_array = self.waveform_mgr.input_waveform(inputs)
-        # Generate filepath and filename for saving
-        # reset placeholder arrays and filepath in saviour
-        self.ga_observer.reset()
+        self.results = GAResults(inputs, targets, self.config_dict['waveform_configs'])
+        inputs_wfm, target_wfm = self.results.reset(self.config_dict['hyperparameters'])
 
         self.pool = np.zeros((self.genomes, self.genes))
         self.opposite_pool = np.zeros((self.genomes, self.genes))
@@ -135,41 +98,45 @@ class GA:
         for gen in range(self.generations):
             start = time.time()
 
-            self.outputs = self.evaluator.evaluate_population(self.inputs_wfm, self.pool, self.target_wfm)
-            self.fitness = self.fitness_function(self.outputs, self.target_wfm)
+            self.outputs = self.evaluator.evaluate_population(inputs_wfm, self.pool, target_wfm)
+            self.fitness = self.fitness_function(self.outputs, target_wfm)
 
             # Status print
             max_fit = max(self.fitness)
             print(f"Highest fitness: {max_fit}")
 
-            self.next_state = {'generation': gen, 'genes': self.pool, 'outputs': self.outputs, 'fitness': self.fitness}
+            self.results.update({'generation': gen, 'genes': self.pool, 'outputs': self.outputs, 'fitness': self.fitness})
+            if gen % 5 == 0:
+                # Save generation
+                print('--- checkpoint ---')
+                self.save_results()
 
             end = time.time()
             print("Generation nr. " + str(gen + 1) + " completed; took " + str(end - start) + " sec.")
             if self.stop_condition(max_fit):
                 print('--- final saving ---')
-                self.ga_observer.save_results()
+                self.save_results()
                 break
             # Evolve to the next generation
             self.next_gen(gen)
 
         # Get best results
-        max_fitness, best_genome, best_output = self.ga_observer.judge()
-#        print(best_output.shape,self.target_wfm.shape)
-        best_corr = self.corr(best_output)
-        print(f'\n========================= BEST SOLUTION =======================')
-        print('Fitness: ', max_fitness)
-        print('Correlation: ', best_corr)
-        print(f'Genome:\n {best_genome}')
-        y = best_output[self.filter_array][:, np.newaxis]
-        trgt = self.target_wfm[self.filter_array][:, np.newaxis]
-        accuracy, _, _ = perceptron(y, trgt)
-        print('Accuracy: ', accuracy)
-        print('===============================================================')
+        return self.results.judge()
 
-        return {'best_genome': best_genome, 'best_output': best_output, 'max_fitness': max_fitness, 'accuracy': accuracy}
+    def stop_condition(self, max_fit):
+        best = self.outputs[self.fitness == max_fit][0]
+        corr = self.results.corr(best)
+        print(f"Correlation of fittest genome: {corr}")
+        if corr >= self.stop_thr:
+            print(f'Very high correlation achieved, evolution will stop! \
+                  (correlaton threshold set to {self.stop_thr})')
+        return corr >= self.stop_thr
 
+    def save_results(self):
+        save_directory = create_directory_timestamp(self.save_path, self.save_dir)
+        save(mode='pickle', configs=self.config_dict, path=save_directory, filename='result', dictionary=self.results.results)
 # %% Step to next generation
+
     def next_gen(self, gen):
         # Sort genePool based on fitness
         indices = np.argsort(self.fitness)
@@ -325,22 +292,3 @@ class GA:
         for k in range(len(indices)):
             if indices[k][0]:
                 self.pool[k, :] = self.opposite_pool[k, :]
-
-# %%
-#    #################################################
-#    ########### Helper Methods ######################
-#    #################################################
-
-    def stop_condition(self, max_fit):
-        best = self.outputs[self.fitness == max_fit][0]
-        corr = self.corr(best)
-        print(f"Correlation of fittest genome: {corr}")
-        if corr >= self.stop_thr:
-            print(f'Very high correlation achieved, evolution will stop! \
-                  (correlaton threshold set to {self.stop_thr})')
-        return corr >= self.stop_thr
-
-    def corr(self, x):
-        x = x[self.filter_array][np.newaxis, :]
-        y = self.target_wfm[self.filter_array][np.newaxis, :]
-        return np.corrcoef(np.concatenate((x, y), axis=0))[0, 1]

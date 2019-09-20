@@ -1,7 +1,8 @@
 {
   "results_path": "./tmp/output/genetic_algorithm/",
+  "stop_threshold": 0.9,
   "hyperparameters": {
-            "generange": [[-1.2, 0.6], [-1.2, 0.6], [-1.2, 0.6], [-0.7, 0.3], [-0.7, 0.3], [1, 1]],
+            "generange": [ [-1.2, 0.6], [-1.2, 0.6], [-1.2, 0.6], [-0.7, 0.3], [-0.7, 0.3], [1, 1] ],
             "partition": [5, 5, 5, 5, 5],
             "mutationrate": 0.1,
             "epochs": 100,
