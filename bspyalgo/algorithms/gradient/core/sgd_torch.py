@@ -33,7 +33,7 @@ Notes:
 """
 
 import torch
-from bspyalgo.utils.io import save
+from bspyalgo.utils.io import save, create_directory_timestamp
 
 
 def trainer(data, network, config_dict, loss_fn=torch.nn.MSELoss()):
@@ -52,6 +52,10 @@ def trainer(data, network, config_dict, loss_fn=torch.nn.MSELoss()):
         optimizer = torch.optim.Adam(network.parameters(),
                                      lr=config_dict['learning_rate'])
     print('Prediction using ADAM optimizer')
+    if 'results_path' in config_dict.keys():
+        dir_path = create_directory_timestamp(config_dict['results_path'], config_dict['experiment_name'])
+    else:
+        dir_path = None
 
     # Define variables
     x_train, y_train = data[0]
@@ -90,28 +94,17 @@ def trainer(data, network, config_dict, loss_fn=torch.nn.MSELoss()):
         prediction = network(x_val)
         costs[epoch, 1] = loss_fn(prediction, y_val).item()
 
-        if 'save_dir' in config_dict.keys() and epoch % SGD_CONFIGS['save_interval'] == 0:
-            save(config_dict['save_dir'], f'checkpoint_epoch{epoch}.pt',
-                 'torch', config_dict, model=network)
+        if dir_path and epoch + SGD_CONFIGS['save_interval'] % SGD_CONFIGS['save_interval'] == 0:
+            save('torch', config_dict, config_dict['save_dir'], f'checkpoint_epoch{epoch}.pt', torch_model=network)
 
         if epoch % 10 == 0:
             print('Epoch:', epoch,
                   'Val. Error:', costs[epoch, 1],
                   'Training Error:', costs[epoch, 0])
 
+    if dir_path:
+        save('torch', config_dict, dir_path, 'trained_network.pt', torch_model=network)
     return costs
-
-
-def save_model(model, path):
-    """
-    Saves the model in given path, all other attributes are saved under
-    the 'info' key as a new dictionary.
-    """
-    model.eval()
-    state_dic = model.state_dict()
-    if 'info' in dir(model):
-        state_dic['info'] = model.info
-    torch.save(state_dic, path)
 
 
 if __name__ == '__main__':
@@ -125,20 +118,21 @@ if __name__ == '__main__':
     in_list = [0, 3]
     x = 0.5 * np.random.randn(10, len(in_list))
     inp_train = torch.Tensor(x).to(DEVICE)
-    t_train = torch.Tensor(5. * np.ones(10)).to(DEVICE)
+    t_train = torch.Tensor(5. * np.ones((10, 1))).to(DEVICE)
     x = 0.5 * np.random.randn(4, len(in_list))
     inp_val = torch.Tensor(x).to(DEVICE)
-    t_val = torch.Tensor(5. * np.ones(4)).to(DEVICE)
+    t_val = torch.Tensor(5. * np.ones((4, 1))).to(DEVICE)
     DATA = [(inp_train, t_train), (inp_val, t_val)]
     # Start the node
     node = DNPU(in_list)
     START_PARAMS = [p.clone().detach() for p in node.parameters()]
     # Make config dict
     SGD_CONFIGS = {}
-    SGD_CONFIGS['nr_epochs'] = 3000,
-    SGD_CONFIGS['batch_size'] = len(t_train),
+    SGD_CONFIGS['nr_epochs'] = 3000
+    SGD_CONFIGS['batch_size'] = len(t_train)
     SGD_CONFIGS['learning_rate'] = 3e-5
-    SGD_CONFIGS['save_dir'] = 'tmp/NN_test/'
+    SGD_CONFIGS['results_path'] = 'tmp/NN_test/'
+    SGD_CONFIGS['experiment_name'] = 'TEST'
     SGD_CONFIGS['save_interval'] = np.inf
     # NOTE: the values above are for the purpose of the toy problem here and
     #       should not be used elsewere.

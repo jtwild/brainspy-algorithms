@@ -16,7 +16,15 @@ def save(mode, configs, path, filename, **kwargs):
         if mode == 'numpy':
             np.savez(os.path.join(path, filename), **kwargs)
         elif mode == 'torch':
-            raise NotImplementedError(f"Saving results for torch has still not been implemented")
+            """
+            Saves the model in given path, all other attributes are saved under
+            the 'info' key as a new dictionary.
+            """
+            import torch
+            kwargs['torch_model'].model.eval()
+            state_dic = kwargs['torch_model'].model.state_dict()
+            state_dic['info'] = kwargs['torch_model'].info
+            torch.save(state_dic, path + filename)
         else:
             raise NotImplementedError(f"Mode {mode} is not recognised. Please choose a value between 'numpy', 'torch' and 'configs'.")
 
