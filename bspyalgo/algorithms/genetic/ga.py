@@ -63,6 +63,7 @@ class GA:
         self.load_hyperparameters(config_dict)
         self.load_functions(config_dict)
         self.load_observer(config_dict)
+        self.load_waveform(config_dict)
 
     def load_waveform(self, config_dict):
         self.waveform_mgr = WaveformManager(config_dict['waveform_configs'])
@@ -86,7 +87,7 @@ class GA:
         self.partition = config_dict['hyperparameters']['partition']   # Partitions of population
         self.mutationrate = config_dict['hyperparameters']['mutationrate']
         self.seed = config_dict['hyperparameters']['seed']
-        self.generations = config_dict['hyperparameters']['epoch']
+        self.generations = config_dict['hyperparameters']['epochs']
 
     def attach(self, observer):
         # register subject in observer
