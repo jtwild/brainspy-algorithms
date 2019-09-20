@@ -1,5 +1,6 @@
 {
   "results_path": "./tmp/output/genetic_algorithm/",
+  "results_dirname": "my_experiment",
   "stop_threshold": 0.9,
   "hyperparameters": {
             "generange": [ [-1.2, 0.6], [-1.2, 0.6], [-1.2, 0.6], [-0.7, 0.3], [-0.7, 0.3], [1, 1] ],

@@ -51,7 +51,7 @@ def create_directory(path):
 
 def create_directory_timestamp(path, name):
     datetime = time.strftime("%Y_%m_%d_%H%M%S")
-    path = path + datetime + '_' + name
+    path = path + name + '_' + datetime  
     return create_directory(path)
 
 
