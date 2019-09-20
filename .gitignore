@@ -9,6 +9,6 @@ bspyalgo/algorithms/gradient/__pycache__/*
 bspyalgo/platforms/__pycache__/*
 bspyalgo/utils/__pycache__/*
 .vscode/*
-brainspy_instruments.egg-info/*
+brainspy_algorithms.egg-info/*
 build/*
 dist/*
