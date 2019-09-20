@@ -51,13 +51,15 @@ class GA:
 
         # Internal parameters and variables
         self._next_state = None
+        self.save_dir = config_dict['experiment_name']
 
 # %% Methods implementing observer pattern for Saver and Plotter
 
     def load_configs(self, config_dict):
         self.config_dict = config_dict
         self.save_path = config_dict['results_path']
-        self.save_dir = 'OPT'
+        self.save_dir = config['results_dirname']
+        
         self.load_hyperparameters(config_dict)
         self.load_functions(config_dict)
         self.stop_thr = config_dict['stop_threshold']
