@@ -61,16 +61,19 @@ class GA:
         self.attach(self.ga_observer)
 
         # Define GA hyper-parameters
-
         self.generange = config_dict['hyperparameters']['generange']   # Voltage range of CVs
         self.genes = len(config_dict['hyperparameters']['generange'])
         self.genomes = sum(config_dict['hyperparameters']['partition'])       # Nr of individuals in population
         self.partition = config_dict['hyperparameters']['partition']   # Partitions of population
         self.mutationrate = config_dict['hyperparameters']['mutationrate']
+        self.seed = config_dict['hyperparameters']['seed']
+        self.generations = config_dict['hyperparameters']['epoch']
 
         self.waveform_configs = config_dict['waveform_configs']
         self.evaluation_configs = config_dict['ga_evaluation_configs']
 
+        self.save_path = config_dict['results_path']
+        self.save_dir = 'OPT'
         # Parameters to define target waveforms
         # self.lengths = config_dict['lengths']       # Length of data in the waveform
         # self.slopes = config_dict['slopes']         # Length of ramping from one value to the next
@@ -106,23 +109,16 @@ class GA:
         self._notify()
 
 # %% Method implementing evolution
-    def optimize(self, inputs, targets,
-                 epochs=100,
-                 savepath=r'./tmp/output/',
-                 dirname='TEST',
-                 seed=None):
+    def optimize(self, inputs, targets):
 
         assert len(inputs[0]) == len(targets), f'No. of input data {len(inputs)} does not match no. of targets {len(targets)}'
-        np.random.seed(seed=seed)
+        np.random.seed(seed=self.seed)
 
-        self.generations = epochs
         # Initialize target
         self.target_wfm = self.waveform(targets)
         # Initialize target
         self.inputs_wfm, self.filter_array = self.input_waveform(inputs)
         # Generate filepath and filename for saving
-        self.savepath = savepath
-        self.dirname = dirname
         # reset placeholder arrays and filepath in saviour
         self.ga_observer.reset()
 
@@ -151,7 +147,7 @@ class GA:
             print("Generation nr. " + str(gen + 1) + " completed; took " + str(end - start) + " sec.")
             if self.stop_condition(max_fit):
                 print('--- final saving ---')
-                self.ga_observer.save()
+                self.ga_observer.save_results()
                 break
             # Evolve to the next generation
             self.next_gen(gen)

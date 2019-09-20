@@ -34,8 +34,8 @@ class GAObserver:
         self.fitness_array = -np.inf * np.ones((self.subject.generations, self.subject.genomes))
         # Initialize save directory
         self.save_directory = create_directory_timestamp(
-            self.subject.savepath,
-            self.subject.dirname)
+            self.subject.save_path,
+            self.subject.dir_name)
         # Save experiment configurations
         self.config_dict['target'] = self.subject.target_wfm
         self.config_dict['inputs'] = self.subject.inputs_wfm

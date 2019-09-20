@@ -27,6 +27,9 @@ def load_configs(file):
 
 
 def save_configs(configs, file):
+    for key in configs:
+        if type(configs[key]) is np.ndarray:
+            configs[key] = configs[key].tolist()
     json.dump(configs, open(file, 'w'))
 
 
