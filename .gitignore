@@ -1,4 +1,5 @@
-configs/ga_configs.json
+configs/ga/ga_configs_template.json
+configs/gd/ga_configs_template.json
 tmp/*
 bspyalgo/__pycache__/*
 bspyalgo/algorithms/__pycache__/*
