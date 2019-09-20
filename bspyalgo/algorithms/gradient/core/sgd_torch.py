@@ -94,8 +94,8 @@ def trainer(data, network, config_dict, loss_fn=torch.nn.MSELoss()):
         prediction = network(x_val)
         costs[epoch, 1] = loss_fn(prediction, y_val).item()
 
-        if dir_path and epoch + SGD_CONFIGS['save_interval'] % SGD_CONFIGS['save_interval'] == 0:
-            save('torch', config_dict, config_dict['save_dir'], f'checkpoint_epoch{epoch}.pt', torch_model=network)
+        if dir_path and (epoch + 1) % SGD_CONFIGS['save_interval'] == 0:
+            save('torch', config_dict, dir_path, f'checkpoint_epoch{epoch}.pt', torch_model=network)
 
         if epoch % 10 == 0:
             print('Epoch:', epoch,
@@ -128,12 +128,12 @@ if __name__ == '__main__':
     START_PARAMS = [p.clone().detach() for p in node.parameters()]
     # Make config dict
     SGD_CONFIGS = {}
-    SGD_CONFIGS['nr_epochs'] = 3000
+    SGD_CONFIGS['nr_epochs'] = 300
     SGD_CONFIGS['batch_size'] = len(t_train)
     SGD_CONFIGS['learning_rate'] = 3e-5
     SGD_CONFIGS['results_path'] = 'tmp/NN_test/'
     SGD_CONFIGS['experiment_name'] = 'TEST'
-    SGD_CONFIGS['save_interval'] = np.inf
+    SGD_CONFIGS['save_interval'] = 10
     # NOTE: the values above are for the purpose of the toy problem here and
     #       should not be used elsewere.
     # The default values in the config_dict should be:
