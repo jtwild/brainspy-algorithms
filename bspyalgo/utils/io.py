@@ -102,7 +102,7 @@ if __name__ == '__main__':
     GA_CONFIGS['waveform_configs'] = GA_WAVEFORM_CONFIGS
     GA_CONFIGS['ga_evaluation_configs'] = GA_EVALUATION_CONFIGS    # Dictionary containing all variables for the platform
 
-    # save_configs(GA_CONFIGS, './configs/ga_configs.json')
+    save_configs(GA_CONFIGS, './configs/ga/ga_configs_template.json')
 
     # Make config dict for GD
     SGD_HYPERPARAMETERS = {}
