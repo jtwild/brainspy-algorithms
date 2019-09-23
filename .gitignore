@@ -1,14 +1,49 @@
-configs/ga/ga_configs_template.json
-configs/gd/gd_configs_template.json
-tmp/*
-bspyalgo/__pycache__/*
-bspyalgo/algorithms/__pycache__/*
-bspyalgo/algorithms/genetic/__pycache__/*
-bspyalgo/algorithms/genetic/core/__pycache__/*
-bspyalgo/algorithms/gradient/__pycache__/*
-bspyalgo/platforms/__pycache__/*
-bspyalgo/utils/__pycache__/*
+# Visual studio workspace files
 .vscode/*
-brainspy_algorithms.egg-info/*
-build/*
-dist/*
+
+# Temporal input/output files of the application
+tmp/*
+
+# Configuration templates
+./configs/ga/ga_configs_template.json
+./configs/gd/gd_configs_template.json
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+
+# C extensions
+*.so
+
+# Distribution / packaging
+bin/
+build/
+develop-eggs/
+dist/
+eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+.tox/
+.coverage
+.cache
+nosetests.xml
+coverage.xml
+
+# Translations
+*.mo
+
+# Mr Developer
+.mr.developer.cfg
+.project
