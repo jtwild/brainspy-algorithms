@@ -11,6 +11,7 @@ Created on Wed Aug 21 11:34:14 2019
 """
 # import logging
 from bspyalgo.algorithms.genetic.ga import GA
+from bspyalgo.algorithms.gradient.gd import get_gd
 
 # TODO: Add chip platform
 # TODO: Add simulation platform
@@ -28,7 +29,7 @@ def get_algorithm(algorithm_type, configs_dir):
         return GA(configs)
     elif algorithm_type == 'gradient_descent':
         configs = load_configs(configs_dir)
-        raise NotImplementedError(f"The gradient descent algorithm has still not been implemented.")
+        return get_gd(configs)
     else:
         raise NotImplementedError(f"Algorithm {configs['algorithm']} is not recognised. Please try again with 'genetic' or 'gradient_descent'")
 

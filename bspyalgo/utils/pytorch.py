@@ -72,30 +72,34 @@ class TorchUtils:
         return data.detach().numpy()
 
 
-class TorchModel:
+class TorchModel(nn.Module):
     """
         The TorchModel class is used to manage together a torch model and its state dictionary. The usage is expected to be as follows
         mymodel = TorchModel()
         mymodel.load_model('my_path/my_model.pt')
         mymodel.model
-        mymodel.state_dict
     """
+
+    def __init__(self):
+        super().__init__()
+        self.model = None
+        self.info = None
 
     def load_model(self, data_dir):
         """Loads a pytorch model from a directory string."""
-        self.state_dict = torch.load(data_dir, map_location=TorchUtils.get_accelerator_type())
-        self.info_dict = self._info_consistency_check(self.state_dict['info'])
-        del self.state_dict['info']
+        state_dict = torch.load(data_dir, map_location=TorchUtils.get_accelerator_type())
+        self.info = self._info_consistency_check(state_dict['info'])
+        del state_dict['info']
 
-        self._build_model(self.info_dict)
-        self.model.load_state_dict(self.state_dict)
+        self.build_model(self.info)
+        self.model.load_state_dict(state_dict)
 
         if TorchUtils.get_accelerator_type() == 'cuda':
             self.model.cuda()
 
     def inference_in_nanoamperes(self, inputs):
         outputs = self.inference_as_numpy(inputs)
-        return outputs * self.info_dict['amplification']
+        return outputs * self.info['amplification']
 
     def inference_as_numpy(self, inputs):
         inputs_torch = TorchUtils.get_tensor_from_numpy(inputs)
@@ -121,10 +125,11 @@ class TorchModel:
 
     def _get_activation(self, activation):
         if type(activation) is str:
+            print('Activation function is set as ReLU')
             return nn.ReLU()
         return activation
 
-    def _build_model(self, model_info):
+    def build_model(self, model_info):
 
         hidden_sizes = model_info['hidden_sizes']
         input_layer = nn.Linear(model_info['D_in'], hidden_sizes[0])
