@@ -7,16 +7,17 @@ def get_gd(configs):
         raise NotImplementedError('Hardware platform not implemented')
 
     elif configs['platform'] == 'simulation':
+        from bspyalgo.utils.pytorch import TorchModel
         if configs['get_network'] == 'build':
-            raise NotImplementedError('Network not implemented')
-        elif configs['get_network'] == 'load':
-            from bspyalgo.utils.pytorch import TorchModel
             network = TorchModel()
-            network.load_model(configs['path_to_network'])
+            network.build(configs['model_configs'])
+        elif configs['get_network'] == 'load':
+            network = TorchModel()
+            network.load_model(configs['model_configs']['torch_model_path'])
         elif configs['get_network'] == 'dnpu':
             from bspyalgo.algorithms.gradient.core.dopanet import DNPU
-            network = DNPU(configs['in_list'], path=configs['path_to_network'])
-        return GD(configs, network)
+            network = DNPU(configs['model_configs']['input_indices'], path=configs['model_configs']['torch_model_path'])
+        return GD(configs['hyperparameters'], network)
     else:
         raise NotImplementedError('Platform not implemented')
 
@@ -42,3 +43,49 @@ class GD:
         data = [(inputs[0], targets[0]), (inputs[1], targets[1])]
 
         return trainer(data, self.network, self.config_dict, loss_fn=self.loss_fn)
+
+
+if __name__ == '__main__':
+
+    import matplotlib.pyplot as plt
+    import numpy as np
+    # Get device
+    DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    # Make config dict for GD
+    SGD_HYPERPARAMETERS = {}
+    SGD_HYPERPARAMETERS['nr_epochs'] = 3000
+    SGD_HYPERPARAMETERS['batch_size'] = 128
+    SGD_HYPERPARAMETERS['learning_rate'] = 1e-4
+    SGD_HYPERPARAMETERS['save_interval'] = 10
+    SGD_HYPERPARAMETERS['seed'] = 33
+    SGD_HYPERPARAMETERS['betas'] = (0.9, 0.99)
+
+    SGD_MODEL_CONFIGS = {}
+    SGD_MODEL_CONFIGS['input_indices'] = [0, 1]
+    SGD_MODEL_CONFIGS['torch_model_path'] = r'tmp/NN_model/checkpoint3000_02-07-23h47m.pt'
+
+    SGD_CONFIGS = {}
+    SGD_CONFIGS['platform'] = 'simulation'
+    SGD_CONFIGS['get_network'] = 'dnpu'
+    SGD_CONFIGS['results_path'] = r'tmp/NN_test/'
+    SGD_CONFIGS['experiment_name'] = 'TEST'
+    SGD_CONFIGS['hyperparameters'] = SGD_HYPERPARAMETERS
+    SGD_CONFIGS['model_configs'] = SGD_MODEL_CONFIGS
+
+    # Create data
+    x = 0.5 * np.random.randn(10, len(SGD_MODEL_CONFIGS['input_indices']))
+    inp_train = torch.Tensor(x).to(DEVICE)
+    t_train = torch.Tensor(5. * np.ones((10, 1))).to(DEVICE)
+    x = 0.5 * np.random.randn(4, len(SGD_MODEL_CONFIGS['input_indices']))
+    inp_val = torch.Tensor(x).to(DEVICE)
+    t_val = torch.Tensor(5. * np.ones((4, 1))).to(DEVICE)
+
+    INPUTS, TARGETS = (inp_train, inp_val), (t_train, t_val)
+
+    COSTS = get_gd(SGD_CONFIGS).optimize(INPUTS, TARGETS)
+
+    plt.figure()
+    plt.plot(COSTS)
+    plt.title("Loss per epoch")
+    plt.legend(["Training", "Validation"])
+    plt.show()

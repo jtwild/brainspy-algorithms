@@ -42,7 +42,7 @@ class DNPU(TorchModel):
             (self.max_voltage[self.indx_cv] - self.min_voltage[self.indx_cv]) * \
             np.random.rand(1, self.nr_cv)
 
-        bias = torch.tensor(bias, dtype=torch.float32).to(DEVICE)
+        bias = torch.as_tensor(bias, dtype=torch.float32).to(DEVICE)
         self.bias = nn.Parameter(bias)
         # Set as torch Tensors and send to DEVICE
         self.indx_cv = torch.tensor(self.indx_cv, dtype=torch.int64).to(DEVICE)  # IndexError: tensors used as indices must be long, byte or bool tensors

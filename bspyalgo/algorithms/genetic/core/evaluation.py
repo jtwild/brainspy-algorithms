@@ -57,8 +57,8 @@ class NeuralNetworkSimulationEvaluator:
         self.nr_control_genes = self.nn_input_dim - len(self.input_indices)
 
         print(f'Initializing NN platform with {self.nr_control_genes} control genes')
-        self.control_indx = evaluation_configs['control_indices']
-        assert self.nr_control_genes == len(self.control_indx)
+        self.control_indices = np.delete(np.arange(self.nn_input_dim), self.input_indices)
+        print(f'Input indices chosen : {self.input_indices} \n Control indices chosen: {self.control_indices}')
 
         if evaluation_configs.__contains__('trafo_index'):
             self.trafo_indx = evaluation_configs['trafo_index']
@@ -75,7 +75,7 @@ class NeuralNetworkSimulationEvaluator:
         for j in range(genomes):
             # Feed input to NN
             # target_wfm.shape, genePool.shape --> (time-steps,) , (nr-genomes,nr-genes)
-            control_voltage_genes = np.ones_like(target_wfm)[:, np.newaxis] * gene_pool[j, self.control_indx, np.newaxis].T
+            control_voltage_genes = np.ones_like(target_wfm)[:, np.newaxis] * gene_pool[j, self.control_indices, np.newaxis].T
             control_voltage_genes_index = np.delete(np.arange(self.nn_input_dim), self.input_indices)
             # g.shape,x.shape --> (time-steps,nr-CVs) , (input-dim, time-steps)
             x_dummy = np.empty((control_voltage_genes.shape[0], self.nn_input_dim))  # dims of input (time-steps)xD_in

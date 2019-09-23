@@ -34,6 +34,7 @@ Notes:
 
 import torch
 from bspyalgo.utils.io import save, create_directory_timestamp
+import numpy as np
 
 
 def trainer(data, network, config_dict, loss_fn=torch.nn.MSELoss()):
@@ -110,7 +111,6 @@ def trainer(data, network, config_dict, loss_fn=torch.nn.MSELoss()):
 if __name__ == '__main__':
 
     import matplotlib.pyplot as plt
-    import numpy as np
     from bspyalgo.algorithms.gradient.core.dopanet import DNPU
     # Get device
     DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
