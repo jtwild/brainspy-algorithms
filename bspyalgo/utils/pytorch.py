@@ -91,7 +91,7 @@ class TorchModel(nn.Module):
         self.info = self._info_consistency_check(state_dict['info'])
         del state_dict['info']
 
-        self._build_model(self.info)
+        self.build_model(self.info)
         self.model.load_state_dict(state_dict)
 
         if TorchUtils.get_accelerator_type() == 'cuda':
@@ -125,10 +125,11 @@ class TorchModel(nn.Module):
 
     def _get_activation(self, activation):
         if type(activation) is str:
+            print('Activation function is set as ReLU')
             return nn.ReLU()
         return activation
 
-    def _build_model(self, model_info):
+    def build_model(self, model_info):
 
         hidden_sizes = model_info['hidden_sizes']
         input_layer = nn.Linear(model_info['D_in'], hidden_sizes[0])
