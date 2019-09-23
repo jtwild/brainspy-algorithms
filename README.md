@@ -25,7 +25,8 @@ Main optimisation algorithms used for training boron-doped silicon chips both in
 	* Inside the anaconda terminal, navigate to the main folder of the repository, in which the file [conda-env-conf.yml]() is, using the following commands:
 		* *list directory* command: ```` ls````
 		* *change directory* command: ```` cd my_folder````
-	* If you are an advanced user, you can install the conda environment on your own, and execute the setup according to your required options. Otherwise, you can simply run: ````python autoinstall.py````
+  * Install the environment:````conda env create -f conda-env-conf.yml ````
+	* Run the auto-installer: ````python autoinstall.py````
 * Whenever developing or executing the code from this repository, the corresponding environment needs to be activated from the terminal where Anaconda is installed. This is done with the following command: ````conda activate bspyalgo````
 
 * In order to finish, pytorch needs to be installed. Its installation has not been automated as it depends on your current CPU/GPU configuration. You can install it using the commands recommended in pytorch's [official website](https://pytorch.org/get-started/locally/).
