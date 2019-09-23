@@ -12,6 +12,7 @@ Created on Wed Aug 21 11:34:14 2019
 # import logging
 from bspyalgo.algorithms.genetic.ga import GA
 from bspyalgo.algorithms.gradient.gd import get_gd
+from bspyalgo.utils.io import load_configs
 
 # TODO: Add chip platform
 # TODO: Add simulation platform
@@ -38,7 +39,6 @@ def get_algorithm(algorithm_type, configs_dir):
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
     from bspyalgo.utils.pytorch import TorchUtils
-    from bspyalgo.utils.io import load_configs
 
     TorchUtils.set_force_cpu(True)
 
