@@ -41,8 +41,8 @@ class GD:
         """Wraps trainer function in sgd_torch for use in algorithm_manager.
         """
         data = [(inputs[0], targets[0]), (inputs[1], targets[1])]
-
-        return trainer(data, self.network, self.config_dict, loss_fn=self.loss_fn)
+        C = trainer(data, self.network, self.config_dict, loss_fn=self.loss_fn)
+        return {'costs': C}
 
 
 if __name__ == '__main__':
@@ -82,10 +82,10 @@ if __name__ == '__main__':
 
     INPUTS, TARGETS = (inp_train, inp_val), (t_train, t_val)
 
-    COSTS = get_gd(SGD_CONFIGS).optimize(INPUTS, TARGETS)
+    RESULTS = get_gd(SGD_CONFIGS).optimize(INPUTS, TARGETS)
 
     plt.figure()
-    plt.plot(COSTS)
+    plt.plot(RESULTS['costs'])
     plt.title("Loss per epoch")
     plt.legend(["Training", "Validation"])
     plt.show()
