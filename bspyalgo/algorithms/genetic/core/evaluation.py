@@ -50,9 +50,9 @@ class NeuralNetworkSimulationEvaluator:
         self.torch_model.load_model(evaluation_configs['torch_model_path'])
         self.torch_model.model.eval()
         # Set parameters
-        self.amplification = self.torch_model.info_dict['amplification']
+        self.amplification = self.torch_model.info['amplification']
 
-        self.nn_input_dim = len(self.torch_model.info_dict['amplitude'])
+        self.nn_input_dim = len(self.torch_model.info['amplitude'])
         self.input_indices = evaluation_configs['input_indices']
         self.nr_control_genes = self.nn_input_dim - len(self.input_indices)
 
