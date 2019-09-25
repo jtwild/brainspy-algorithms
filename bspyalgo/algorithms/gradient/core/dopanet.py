@@ -9,9 +9,9 @@ Created on Mon Sep  2 11:33:38 2019
 import numpy as np
 import torch.nn as nn
 import torch
-from bspyalgo.utils.pytorch import TorchModel
+from bspyalgo.utils.pytorch import TorchModel, TorchUtils
 
-DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+# DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
 class DNPU(TorchModel):
@@ -42,18 +42,26 @@ class DNPU(TorchModel):
             (self.max_voltage[self.indx_cv] - self.min_voltage[self.indx_cv]) * \
             np.random.rand(1, self.nr_cv)
 
-        bias = torch.as_tensor(bias, dtype=torch.float32).to(DEVICE)
+        # bias = torch.as_tensor(bias, dtype=torch.float32).to(DEVICE)
+        bias = TorchUtils.get_tensor_from_numpy(bias)
         self.bias = nn.Parameter(bias)
         # Set as torch Tensors and send to DEVICE
-        self.indx_cv = torch.tensor(self.indx_cv, dtype=torch.int64).to(DEVICE)  # IndexError: tensors used as indices must be long, byte or bool tensors
-        self.amplification = torch.tensor(self.info['amplification']).to(DEVICE)
-        self.min_voltage = torch.tensor(self.min_voltage, dtype=torch.float32).to(DEVICE)
-        self.max_voltage = torch.tensor(self.max_voltage, dtype=torch.float32).to(DEVICE)
+        self.indx_cv = TorchUtils.get_tensor_from_list(self.indx_cv)  # IndexError: tensors used as indices must be long, byte or bool tensors
+
+        self.amplification = TorchUtils.get_tensor_from_list(self.info['amplification'])
+        self.min_voltage = TorchUtils.get_tensor_from_list(self.min_voltage)
+        self.max_voltage = TorchUtils.get_tensor_from_list(self.max_voltage)
+        # self.indx_cv = torch.tensor(self.indx_cv, dtype=torch.int64).to(DEVICE)  # IndexError: tensors used as indices must be long, byte or bool tensors
+        # self.amplification = torch.tensor(self.info['amplification']).to(DEVICE)
+        # self.min_voltage = torch.tensor(self.min_voltage, dtype=torch.float32).to(DEVICE)
+        # self.max_voltage = torch.tensor(self.max_voltage, dtype=torch.float32).to(DEVICE)
 
     def forward(self, x):
 
         expand_cv = self.bias.expand(x.size()[0], -1)
-        inp = torch.empty((x.size()[0], x.size()[1] + self.nr_cv)).to(DEVICE)
+        # inp = torch.empty((x.size()[0], x.size()[1] + self.nr_cv)).to(DEVICE)
+        inp = (x.size()[0], x.size()[1] + self.nr_cv)
+        inp = TorchUtils.get_tensor_from_list(inp)
 #        print(x.dtype,self.amplification.dtype)
         inp[:, self.in_list] = x
 #        print(inp.dtype,self.indx_cv.dtype,expand_cv.dtype)
@@ -76,9 +84,10 @@ if __name__ == '__main__':
 
     import matplotlib.pyplot as plt
     x = 0.5 * np.random.randn(10, 2)
-    x = torch.Tensor(x).to(DEVICE)
-    target = torch.Tensor([[5]] * 10).to(DEVICE)
-
+    # x = torch.Tensor(x).to(DEVICE)
+    x = TorchUtils.get_tensor_from_numpy(x)
+    # target = torch.Tensor([[5]] * 10).to(DEVICE)
+    target = TorchUtils.get_tensor_from_list([[5]] * 10)
     node = DNPU([0, 4])
     loss = nn.MSELoss()
     optimizer = torch.optim.SGD([{'params': node.parameters()}], lr=0.00005)
