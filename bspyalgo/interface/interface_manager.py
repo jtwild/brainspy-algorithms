@@ -1,20 +1,37 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Aug 28 11:14:23 2019
-
-@author: HCRuiz
-"""
-# import os
-# import pickle
 import numpy as np
 
-from bspyalgo.algorithms.genetic.core.waveforms import WaveformManager
+from bspyalgo.interface.waveforms import WaveformManager
 from bspyalgo.algorithms.genetic.core.classifier import perceptron
+from bspyalgo.utils.pytorch import TorchUtils
 
 
-class GAResults:
+def get_interface(inputs, targets, configs):
+    if configs['algorithm'] == 'genetic':
+        return GAInterface(inputs, targets, configs['waveform_configs'])
+    elif configs['algorithm'] == 'gradient_descent':
+        raise NotImplementedError(f"Algorithm {configs['algorithm']} is not recognised. The interface for gradient descent has not yet been implemented'")
+    else:
+        raise NotImplementedError(f"Interface for algorithm {configs['algorithm']} is not recognised. Please try again with 'genetic' or 'gradient_descent'. ")
 
+
+class GDInterfaceData:
     def __init__(self, inputs, targets, waveform_configs):
+        assert len(inputs[0]) == len(targets), f'No. of input data {len(inputs)} does not match no. of targets {len(targets)}'
+        inputs[0] = TorchUtils.get_tensor_from_list(inputs[0])
+        targets[0] = TorchUtils.get_tensor_from_list(targets[0])
+        inputs[1] = TorchUtils.get_tensor_from_list(inputs[1])
+        targets[1] = TorchUtils.get_tensor_from_list(targets[1])
+
+        self.data = [(inputs[0], targets[0]), (inputs[1], targets[1])]
+        waveform_mgr = WaveformManager(waveform_configs)
+        self.results = {}
+        self.results['targets'] = waveform_mgr.waveform(targets)
+        self.results['inputs'], self.results['mask'] = waveform_mgr.input_waveform(inputs)
+
+
+class GAInterface:
+    def __init__(self, inputs, targets, waveform_configs):
+        assert len(inputs[0]) == len(targets), f'No. of input data {len(inputs)} does not match no. of targets {len(targets)}'
         waveform_mgr = WaveformManager(waveform_configs)
         self.results = {}
         self.results['targets'] = waveform_mgr.waveform(targets)
@@ -43,7 +60,7 @@ class GAResults:
         y = best_output[self.results['mask']][:, np.newaxis]
         trgt = self.results['targets'][self.results['mask']][:, np.newaxis]
         accuracy, _, _ = perceptron(y, trgt)
-        return self.process_results(best_output, max_fitness, best_corr, best_genome, accuracy)
+        self.process_results(best_output, max_fitness, best_corr, best_genome, accuracy)
 
     def corr(self, x):
         x = x[self.results['mask']][np.newaxis, :]
@@ -64,4 +81,4 @@ class GAResults:
         self.results['best_genome'] = best_genome
         self.results['best_output'] = best_output
         self.results['accuracy'] = accuracy
-        return {'best_genome': best_genome, 'best_output': best_output, 'max_fitness': max_fitness, 'accuracy': accuracy}
+        # return {'best_genome': best_genome, 'best_output': best_output, 'max_fitness': max_fitness, 'accuracy': accuracy}

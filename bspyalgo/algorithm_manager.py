@@ -23,13 +23,13 @@ from bspyalgo.utils.io import load_configs
 # voltage configurations of disordered NE systems
 
 
-def get_algorithm(algorithm_type, configs_dir):
-
+def get_algorithm(configs_dir):
     # logging.basicConfig(filename='myapp.log', level=logging.INFO)
-    if algorithm_type == 'genetic':
+    if configs_dir['algorithm'] == 'genetic':
         configs = load_configs(configs_dir)
+
         return GA(configs)
-    elif algorithm_type == 'gradient_descent':
+    elif configs_dir['algorithm'] == 'gradient_descent':
         configs = load_configs(configs_dir)
         return get_gd(configs)
     else:
@@ -92,7 +92,7 @@ if __name__ == '__main__':
     INPUTS, TARGETS = (inp_train, inp_val), (t_train, t_val)
 
     # RESULTS = get_gd(SGD_CONFIGS).optimize(INPUTS, TARGETS)
-    RESULTS = get_algorithm('gradient_descent', './configs/gd/gd_configs_template.json').optimize(INPUTS, TARGETS)
+    RESULTS = get_algorithm('gradient_descent', './configs/gd/gd_configs_template.json').optimize(get_interface(inputs, target))
 
     plt.figure()
     plt.plot(RESULTS['costs'])
