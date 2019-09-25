@@ -1,8 +1,6 @@
 {
+    "algorithm": "gadient_descent",
     "platform": "simulation",
-    "simulation_configs": {
-
-    },
     "get_network": "dnpu",
     "results_path": "tmp/output/models/nn_test/",
     "experiment_name": "TEST",

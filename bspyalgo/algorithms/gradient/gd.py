@@ -3,6 +3,7 @@ import numpy as np
 from bspyalgo.utils.pytorch import TorchUtils
 from bspyalgo.utils.io import save, create_directory_timestamp
 from bspyalgo.utils.pytorch import TorchModel
+from bspyalgo.interface.interface_manager import get_interface
 
 
 def get_gd(configs):
@@ -16,12 +17,12 @@ def get_gd(configs):
 
 
 def get_neural_network_model(configs):
-    if configs['get_network'] == 'build':
-        network = TorchModel()
-        network.build(configs['model_configs'])
-    elif configs['get_network'] == 'load':
+    if configs['get_network'] == 'load':
         network = TorchModel()
         network.load_model(configs['model_configs']['torch_model_path'])
+    elif configs['get_network'] == 'build':
+        network = TorchModel()
+        network.build_model(configs['model_configs'])
     elif configs['get_network'] == 'dnpu':
         from bspyalgo.algorithms.gradient.core.dopanet import DNPU
         network = DNPU(configs['model_configs']['input_indices'], path=configs['model_configs']['torch_model_path'])
@@ -72,11 +73,9 @@ class GD:
     def optimize(self, inputs, targets):
         """Wraps trainer function in sgd_torch for use in algorithm_manager.
         """
-        inputs = TorchUtils.get_tensor_from_list(inputs)
-        targets = TorchUtils.get_tensor_from_list(targets)
-        data = [(inputs[0], targets[0]), (inputs[1], targets[1])]
+        self.data_interface = get_interface(inputs, targets, self.config_dict)
 
-        return {'costs': self.trainer(data)}
+        return {'costs': self.trainer(data_interface)}
 
     def trainer(self, data):
         # Define variables

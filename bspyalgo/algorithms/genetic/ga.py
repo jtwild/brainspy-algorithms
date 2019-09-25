@@ -11,7 +11,7 @@ import numpy as np
 from bspyalgo.algorithms.genetic.core.fitness import choose_fitness_function
 from bspyalgo.algorithms.genetic.core.evaluation import choose_evaluation_function
 from bspyalgo.utils.io import create_directory_timestamp
-from bspyalgo.algorithms.genetic.core.results import GAResults
+from bspyalgo.interface.interface_manager import get_interface
 from bspyalgo.utils.io import save
 # TODO: Implement Plotter
 
@@ -82,13 +82,14 @@ class GA:
         self.config_dict['hyperparameters']['genes'] = self.genes
         self.config_dict['hyperparameters']['genomes'] = self.genomes
 # %% Method implementing evolution
+
     def optimize(self, inputs, targets):
+        self.interface = get_interface(inputs, targets, self.config_dict)
+        return self.train()
 
-        assert len(inputs[0]) == len(targets), f'No. of input data {len(inputs)} does not match no. of targets {len(targets)}'
+    def train(self):
         np.random.seed(seed=self.seed)
-
-        self.results = GAResults(inputs, targets, self.config_dict['waveform_configs'])
-        inputs_wfm, target_wfm = self.results.reset(self.config_dict['hyperparameters'])
+        inputs_wfm, target_wfm = self.interface.reset(self.config_dict['hyperparameters'])
 
         self.pool = np.zeros((self.genomes, self.genes))
         self.opposite_pool = np.zeros((self.genomes, self.genes))
@@ -106,7 +107,7 @@ class GA:
             max_fit = max(self.fitness)
             print(f"Highest fitness: {max_fit}")
 
-            self.results.update({'generation': gen, 'genes': self.pool, 'outputs': self.outputs, 'fitness': self.fitness})
+            self.interface.update({'generation': gen, 'genes': self.pool, 'outputs': self.outputs, 'fitness': self.fitness})
             if gen % 5 == 0:
                 # Save generation
                 print('--- checkpoint ---')
@@ -122,11 +123,12 @@ class GA:
             self.next_gen(gen)
 
         # Get best results
-        return self.results.judge()
+        self.interface.judge()
+        return
 
     def stop_condition(self, max_fit):
         best = self.outputs[self.fitness == max_fit][0]
-        corr = self.results.corr(best)
+        corr = self.interface.corr(best)
         print(f"Correlation of fittest genome: {corr}")
         if corr >= self.stop_thr:
             print(f'Very high correlation achieved, evolution will stop! \
@@ -136,7 +138,7 @@ class GA:
     def save_results(self):
         save_directory = create_directory_timestamp(self.save_path, self.save_dir)
         save(mode='configs', path=save_directory, filename='configs.json', data=self.config_dict)
-        save(mode='pickle', path=save_directory, filename='result.pickle', data=self.results.results)
+        save(mode='pickle', path=save_directory, filename='result.pickle', data=self.interface.results)
 # %% Step to next generation
 
     def next_gen(self, gen):
