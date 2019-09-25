@@ -52,8 +52,8 @@ class GA:
         # Internal parameters and variables
         self._next_state = None
 
-
-# %% Methods implementing observer pattern for Saver and Plotter
+    def get_torch_model_path(self):
+        return self.config_dict['ga_evaluation_configs']['torch_model_path']
 
     def load_configs(self, config_dict):
         self.config_dict = config_dict
@@ -81,7 +81,6 @@ class GA:
         self.genomes = sum(self.partition)
         self.config_dict['hyperparameters']['genes'] = self.genes
         self.config_dict['hyperparameters']['genomes'] = self.genomes
-
 # %% Method implementing evolution
     def optimize(self, inputs, targets):
 
@@ -136,7 +135,8 @@ class GA:
 
     def save_results(self):
         save_directory = create_directory_timestamp(self.save_path, self.save_dir)
-        save(mode='pickle', configs=self.config_dict, path=save_directory, filename='result', dictionary=self.results.results)
+        save(mode='configs', path=save_directory, filename='configs.json', data=self.config_dict)
+        save(mode='pickle', path=save_directory, filename='result.pickle', data=self.results.results)
 # %% Step to next generation
 
     def next_gen(self, gen):

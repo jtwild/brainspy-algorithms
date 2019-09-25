@@ -10,30 +10,34 @@ import pickle
 import numpy as np
 
 
-def save(mode, configs, path, filename, **kwargs):
-    create_directory(path)
-    save_configs(configs, os.path.join(path, 'configs.json'))
+def save(mode, path, filename, **kwargs):
     file_path = os.path.join(path, filename)
-    if mode != 'configs':
-        if mode == 'numpy':
-            np.savez(file_path, **kwargs)
-        if mode == 'pickle':
-            if not kwargs['dictionary']:
-                raise ValueError(f"Value dictionary is missing.")
-            else:
-                pickle.dump(kwargs['dictionary'], open(file_path, "wb"))
+    if mode == 'numpy':
+        np.savez(file_path, **kwargs)
+    elif not kwargs['data']:
+        raise ValueError(f"Value dictionary is missing in kwargs.")
+    else:
+        if mode == 'configs':
+            save_configs(kwargs['data'], file_path)
+        elif mode == 'pickle':
+            pickle.dump(kwargs['data'], open(file_path, "wb"))
         elif mode == 'torch':
-            """
-            Saves the model in given path, all other attributes are saved under
-            the 'info' key as a new dictionary.
-            """
-            import torch
-            kwargs['torch_model'].model.eval()
-            state_dic = kwargs['torch_model'].model.state_dict()
-            state_dic['info'] = kwargs['torch_model'].info
-            torch.save(state_dic, file_path)
+            save_torch(kwargs['data'])
         else:
             raise NotImplementedError(f"Mode {mode} is not recognised. Please choose a value between 'numpy', 'torch', 'pickle' and 'configs'.")
+
+
+def save_torch(torch_model):
+    """
+        Saves the model in given path, all other attributes are saved under
+        the 'info' key as a new dictionary.
+    """
+    import torch
+
+    torch_model.model.eval()
+    state_dic = torch_model.model.state_dict()
+    state_dic['info'] = torch_model.info
+    torch.save(state_dic, file_path)
 
 
 def load_configs(file):
