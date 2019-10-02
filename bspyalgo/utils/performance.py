@@ -62,6 +62,20 @@ def f(x):
     return float(x < 0)
 
 
+def corr(self, x):
+    x = x[self.results['mask']][np.newaxis, :]
+    y = self.results['targets'][self.results['mask']][np.newaxis, :]
+    return np.corrcoef(np.concatenate((x, y), axis=0))[0, 1]
+    # return self.results['corr']
+
+
+def accuracy(best_output, targets, mask):
+    y = best_output[mask][:, np.newaxis]
+    trgt = targets[mask][:, np.newaxis]
+    accuracy, _, _ = perceptron(y, trgt)
+    return accuracy
+
+
 if __name__ == '__main__':
 
     # XOR as target

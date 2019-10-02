@@ -12,7 +12,11 @@ from bspyalgo.algorithms.genetic.core.fitness import choose_fitness_function
 from bspyalgo.algorithms.genetic.core.evaluation import choose_evaluation_function
 from bspyalgo.utils.io import create_directory_timestamp
 from bspyalgo.interface.interface_manager import get_interface
+from bspyalgo.algorithms.optimizer_data import OptimizerData
 from bspyalgo.utils.io import save
+from bspyalgo.algorithms.genetic.core.trafo import get_trafo
+from bspyproc.processors.processor_mgr import get_processor
+from bspyalgo.algorithms.genetic.core.data import GAData
 # TODO: Implement Plotter
 
 
@@ -61,12 +65,25 @@ class GA:
         self.save_dir = config_dict['experiment_name']
 
         self.load_hyperparameters(config_dict)
-        self.load_functions(config_dict)
-        self.stop_thr = config_dict['stop_threshold']
 
-    def load_functions(self, config_dict):
-        self.evaluator = choose_evaluation_function(config_dict['ga_evaluation_configs'])
+        self.stop_thr = config_dict['stop_threshold']
         self.fitness_function = choose_fitness_function(config_dict['hyperparameters']['fitness_function_type'])
+        self.processor = self.load_processor(config_dict['processor'])
+        self.load_trafo(conOptimizerDatafig_dict['hyperparameters']['transformation'])
+
+    def load_trafo(self, config_dict):
+        self.gene_trafo_index = config_dict['gene_trafo_index']
+        if self.gene_trafo_index is not None:
+            self._input_trafo = get_trafo(config_dict['trafo_function'])
+        else:
+            self._input_trafo = lambda x, y: x  # define trafo as identity
+
+    def load_processor(self, config_dict):
+        self.input_electrode_no = config_dict['input_electrode_no']
+        self.input_indices = config_dict['input_indices']
+        self.nr_control_genes = self.input_electrode_no - len(self.input_indices)
+        self.control_voltage_genes_indices = np.delete(np.arange(self.input_electrode_no), self.input_indices)
+        return get_processor(config_dict)
 
     def load_hyperparameters(self, config_dict):
         # Define GA hyper-parameters
@@ -84,13 +101,10 @@ class GA:
 # %% Method implementing evolution
 
     def optimize(self, inputs, targets):
-        self.interface = get_interface(inputs, targets, self.config_dict)
-        return self.train()
-
-    def train(self):
+        # data = OptimizerData(inputs, targets)
         np.random.seed(seed=self.seed)
-        inputs_wfm, target_wfm = self.interface.reset(self.config_dict['hyperparameters'])
 
+        self.data = GAData(inputs, targets, self.config_dict['hyperparameters'])
         self.pool = np.zeros((self.genomes, self.genes))
         self.opposite_pool = np.zeros((self.genomes, self.genes))
         for i in range(0, self.genes):
@@ -100,14 +114,14 @@ class GA:
         for gen in range(self.generations):
             start = time.time()
 
-            self.outputs = self.evaluator.evaluate_population(inputs_wfm, self.pool, target_wfm)
-            self.fitness = self.fitness_function(self.outputs, target_wfm)
+            self.outputs = self.evaluate_population(inputs, self.pool, targets)
+            self.fitness = self.fitness_function(self.outputs, targets)
 
             # Status print
             max_fit = max(self.fitness)
             print(f"Highest fitness: {max_fit}")
 
-            self.interface.update({'generation': gen, 'genes': self.pool, 'outputs': self.outputs, 'fitness': self.fitness})
+            self.data.update({'generation': gen, 'genes': self.pool, 'outputs': self.outputs, 'fitness': self.fitness})
             if gen % 5 == 0:
                 # Save generation
                 print('--- checkpoint ---')
@@ -122,9 +136,50 @@ class GA:
             # Evolve to the next generation
             self.next_gen(gen)
 
-        # Get best results
-        self.interface.judge()
-        return
+        return self.data.results
+
+    def post_process(self):
+        self.data.judge()
+        return self.data.results
+
+    def evaluate_population(self, inputs_wfm, gene_pool, target_wfm):
+        '''Optimisation function of the platform '''
+        genomes = len(gene_pool)
+        output_popul = np.zeros((genomes, target_wfm.shape[-1]))
+
+        for j in range(genomes):
+            # Feed input to NN
+            # target_wfm.shape, genePool.shape --> (time-steps,) , (nr-genomes,nr-genes)
+            control_voltage_genes = np.ones_like(target_wfm)[:, np.newaxis] * gene_pool[j, self.control_voltage_genes_indices, np.newaxis].T
+
+            # g.shape,x.shape --> (time-steps,nr-CVs) , (input-dim, time-steps)
+            x_dummy = np.empty((control_voltage_genes.shape[0], self.input_electrode_no))  # dims of input (time-steps)xD_in
+            # Set the input scaling
+            # inputs_wfm.shape -> (nr-inputs,nr-time-steps)
+            x_dummy[:, self.input_indices] = self._input_trafo(inputs_wfm, gene_pool[j, self.gene_trafo_index]).T
+            x_dummy[:, self.control_voltage_genes_indices] = control_voltage_genes
+
+            output_popul[j] = self.processor.forward(x_dummy)
+
+        return output_popul
+
+    def post_processing(self):
+        max_fitness = np.max(self.results['fitness_array'])
+        ind = np.unravel_index(np.argmax(self.results['fitness_array'], axis=None), self.results['fitness_array'].shape)
+        best_genome = self.results['gene_array'][ind]
+        best_output = self.results['output_array'][ind]
+        best_corr = self.corr(best_output)
+
+        y = best_output[self.results['mask']][:, np.newaxis]
+        trgt = self.results['targets'][self.results['mask']][:, np.newaxis]
+        accuracy, _, _ = perceptron(y, trgt)
+        self.process_results(best_output, max_fitness, best_corr, best_genome, accuracy)
+
+    def corr(self, x):
+        x = x[self.results['mask']][np.newaxis, :]
+        y = self.results['targets'][self.results['mask']][np.newaxis, :]
+        return np.corrcoef(np.concatenate((x, y), axis=0))[0, 1]
+        # return self.results['corr']
 
     def stop_condition(self, max_fit):
         best = self.outputs[self.fitness == max_fit][0]
