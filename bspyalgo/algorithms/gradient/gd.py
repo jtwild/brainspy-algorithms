@@ -4,31 +4,18 @@ from bspyalgo.utils.pytorch import TorchUtils
 from bspyalgo.utils.io import save, create_directory_timestamp
 from bspyalgo.utils.pytorch import TorchModel
 from bspyalgo.interface.interface_manager import get_interface
+from bspyalgo.algorithms.gradient.core.data import GDData
+from bspyproc.processors.processor_mgr import get_processor
 
 
 def get_gd(configs):
     if configs['platform'] == 'hardware':
         raise NotImplementedError('Hardware platform not implemented')
+        # TODO: Implement the lock in algorithm class
     elif configs['platform'] == 'simulation':
-        network = get_neural_network_model(configs)
         return GD(configs['hyperparameters'], network)
     else:
         raise NotImplementedError('Platform not implemented')
-
-
-def get_neural_network_model(configs):
-    if configs['get_network'] == 'load':
-        network = TorchModel()
-        network.load_model(configs['model_configs']['torch_model_path'])
-    elif configs['get_network'] == 'build':
-        network = TorchModel()
-        network.build_model(configs['model_configs'])
-    elif configs['get_network'] == 'dnpu':
-        from bspyalgo.algorithms.gradient.core.dopanet import DNPU
-        network = DNPU(configs['model_configs']['input_indices'], path=configs['model_configs']['torch_model_path'])
-    else:
-        raise NotImplementedError('Specified neural network simulation in "get_network" configurations is not available. Try a value between "build", "load" or "dnpu".')
-    return network
 
 
 class GD:
@@ -41,10 +28,18 @@ class GD:
     @author: hruiz
     """
 
-    def __init__(self, config_dict, network, loss_fn=torch.nn.MSELoss()):
-        self.network = network
+    def __init__(self, config_dict, loss_fn=torch.nn.MSELoss()):
+        self.processor_configs = config_dict['processor']
+
         self.loss_fn = loss_fn
         self.load_configs(config_dict)
+
+    def reset_processor(self):
+        self.processor = get_processor(self.processor_configs)
+        if 'regularizer' in dir(self.processor):
+            self.loss_function = loss_with_regularizer
+        else:
+            self.loss_function = loss_fn
 
     def load_configs(self, config_dict):
         self.config_dict = config_dict
@@ -54,12 +49,12 @@ class GD:
             print('The torch RNG is seeded with ', self.config_dict['seed'])
 
         if "betas" in self.config_dict.keys():
-            self.optimizer = torch.optim.Adam(self.network.parameters(),
+            self.optimizer = torch.optim.Adam(self.processor.parameters(),
                                               lr=self.config_dict['learning_rate'],
                                               betas=self.config_dict["betas"])
             print("Set betas to values: ", {self.config_dict["betas"]})
         else:
-            self.optimizer = torch.optim.Adam(self.network.parameters(),
+            self.optimizer = torch.optim.Adam(self.processor.parameters(),
                                               lr=self.config_dict['learning_rate'])
         print('Prediction using ADAM optimizer')
         if 'results_path' in self.config_dict.keys():
@@ -67,66 +62,90 @@ class GD:
         else:
             self.dir_path = None
 
+    def loss_with_regularizer(self, y_pred, y_train):
+        return self.loss_fn(y_pred, y_train) + self.processor.regularizer()
+
     def get_torch_model_path(self):
         return self.config_dict['model_configs']['torch_model_path']
 
-    def optimize(self, inputs, targets):
+    def optimize(self, inputs, targets, validation_data=(None, None)):
         """Wraps trainer function in sgd_torch for use in algorithm_manager.
         """
-        self.data_interface = get_interface(inputs, targets, self.config_dict)
 
-        return {'costs': self.trainer(data_interface)}
-
-    def trainer(self, data):
-        # Define variables
-        x_train, y_train = data[0]
-        x_val, y_val = data[1]
-        costs = np.zeros((self.config_dict['nr_epochs'], 2))  # training and validation costs per epoch
-
-        for epoch in range(self.config_dict['nr_epochs']):
-
-            self.network.train()
-            permutation = torch.randperm(x_train.size()[0])  # Permute indices
-
-            for mb in range(0, len(permutation), self.config_dict['batch_size']):
-                self.train_step(x_train, y_train, permutation, mb)
-
-            costs[epoch, 0] = self.evaluate_training_error(x_val, x_train, y_train)
-            costs[epoch, 1] = self.evaluate_validation_error(x_val, y_val)
-            self.close_epoch(epoch, costs)
-
+        self.reset_processor()
+        data = GDData(inputs, targets, validation_data)
+        if(validation_data is not (None, None)):
+            data = self.sgd_trainer(data)
+        else:
+            data = self.optimize_without_validation(data)
         if self.dir_path:
             self.save_results('trained_network.pt')
-        return costs
+        return data
+        # Define variables
 
-    def train_step(self, x_train, y_train, permutation, mb):
+    def post_process(self):
+        self.data.judge()
+        return self.data.results
+
+    def sgd_train(self, data):
+        x_train = data.results['inputs']
+        y_train = data.results['targets']
+        x_val = data.results['inputs_val']
+        y_val = data.results['targets_val']
+        for epoch in range(self.config_dict['nr_epochs']):
+            self.train_step(x_train, y_train)
+            data.results['performance_history'][epoch, 0], prediction_training = self.evaluate_training_error(x_val, x_train, y_train)
+            data.results['performance_history'][epoch, 1], prediction_validation = self.evaluate_validation_error(x_val, y_val)
+            if self.dir_path and (epoch + 1) % SGD_CONFIGS['save_interval'] == 0:
+                save('torch', self.dir_path, f'checkpoint_epoch{epoch}.pt', data=self.processor)
+            if epoch % 10 == 0:
+                print('Epoch:', epoch,
+                      'Training Error:', data.results['performance_history'][epoch, 0],
+                      'Val. Error:', data.results['performance_history'][epoch, 1])
+        data.results['best_output'] = prediction_validation
+        data.results['best_output_training'] = prediction_training
+        return data
+
+    def sgd_train_without_validation(self, data):
+        # Define variables
+        prediction = None
+        # costs = np.zeros((self.config_dict['nr_epochs'], 2))  # training and validation costs per epoch
+        for epoch in range(self.config_dict['nr_epochs']):
+            self.train_step(data.results['inputs'])
+            with torch.no_grad:
+                prediction = self.processor(data.results['inputs'])
+                data.results['performance_history'][epoch] = self.loss_fn(prediction, data.results['targets']).item()
+            if self.dir_path and (epoch + 1) % SGD_CONFIGS['save_interval'] == 0:
+                save('torch', self.dir_path, f'checkpoint_epoch{epoch}.pt', data=self.processor)
+            if epoch % 10 == 0:
+                print('Epoch:', epoch, 'Training Error:', data.results['performance_history'][epoch])
+        data.results['best_output'] = prediction
+        return data
+
+    def train_step(self, x_train, y_train):
+        self.processor.train()
+        permutation = torch.randperm(x_train.size()[0])  # Permute indices
+
+        for mb in range(0, len(permutation), self.config_dict['batch_size']):
+            self.minibatch_step(x_train, y_train, permutation, mb)
+
+    def minibatch_step(self, x_train, y_train, permutation, mb):
         # Get y_pred
         indices = permutation[mb:mb + self.config_dict['batch_size']]
         x_mb = x_train[indices]
-        y_pred = self.network(x_mb)
+        y_pred = self.processor(x_mb)
 
-        # GD step
-        if 'regularizer' in dir(self.network):
-            loss = self.loss_fn(y_pred, y_train[indices]) + self.network.regularizer()
-        else:
-            loss = self.loss_fn(y_pred, y_train[indices])
+        loss = self.loss_function(y_pred, y_train[indices])
 
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
 
-    def close_epoch(self, epoch, costs):
-        if self.dir_path and (epoch + 1) % SGD_CONFIGS['save_interval'] == 0:
-            self.save_results(f'checkpoint_epoch{epoch}.pt')
-        if epoch % 10 == 0:
-            print('Epoch:', epoch,
-                  'Val. Error:', costs[epoch, 1],
-                  'Training Error:', costs[epoch, 0])
-
     def evaluate_validation_error(self, x_val, y_val):
         # Evaluate Validation error
-        prediction = self.network(x_val)
-        return self.loss_fn(prediction, y_val).item()
+        with torch.no_grad:
+            prediction = self.processor(x_val)
+        return self.loss_fn(prediction, y_val).item(), prediction
 
     def evaluate_training_error(self, x_val, x_train, y_train):
         # Evaluate training error
@@ -134,13 +153,14 @@ class GD:
         samples = len(x_val)
         get_indices = torch.randperm(len(x_train))[:samples]
         x_sampled = x_train[get_indices]
-        prediction = self.network(x_sampled)
+        with torch.no_grad:
+            prediction = self.processor(x_sampled)
         target = y_train[get_indices]
-        return self.loss_fn(prediction, target).item()
+        return self.loss_fn(prediction, target).item(), prediction
 
     def save_results(self, filename):
         save('configs', self.dir_path, f'configs.json', data=self.config_dict)
-        save('torch', self.dir_path, filename, data=self.network)
+        save('torch', self.dir_path, filename, data=self.processor)
 
 
 if __name__ == '__main__':
