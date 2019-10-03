@@ -6,3 +6,4 @@ dependencies:
    - pip:
      - pyjson
      - git+https://github.com/BraiNEdarwin/brainspy-instruments.git
+     - git+https://github.com/BraiNEdarwin/brainspy-processors.git
