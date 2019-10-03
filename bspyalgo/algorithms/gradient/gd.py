@@ -1,11 +1,10 @@
 import torch
 import numpy as np
-from bspyalgo.utils.pytorch import TorchUtils
-from bspyalgo.utils.io import save, create_directory_timestamp
-from bspyalgo.utils.pytorch import TorchModel
-from bspyalgo.interface.interface_manager import get_interface
-from bspyalgo.algorithms.gradient.core.data import GDData
+
 from bspyproc.processors.processor_mgr import get_processor
+from bspyproc.utils.pytorch import TorchUtils
+from bspyalgo.utils.io import save, create_directory_timestamp
+from bspyalgo.algorithms.gradient.core.data import GDData
 
 
 def get_gd(configs):
@@ -13,7 +12,7 @@ def get_gd(configs):
         raise NotImplementedError('Hardware platform not implemented')
         # TODO: Implement the lock in algorithm class
     elif configs['platform'] == 'simulation':
-        return GD(configs['hyperparameters'], network)
+        return GD(configs['hyperparameters'])
     else:
         raise NotImplementedError('Platform not implemented')
 
