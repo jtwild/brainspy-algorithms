@@ -52,7 +52,6 @@ class GA:
 
     def __init__(self, config_dict):
         self.load_configs(config_dict)
-
         # Internal parameters and variables
         self._next_state = None
 
@@ -69,7 +68,7 @@ class GA:
         self.stop_thr = config_dict['stop_threshold']
         self.fitness_function = choose_fitness_function(config_dict['hyperparameters']['fitness_function_type'])
         self.processor = self.load_processor(config_dict['processor'])
-        self.load_trafo(conOptimizerDatafig_dict['hyperparameters']['transformation'])
+        self.load_trafo(config_dict['hyperparameters']['transformation'])
 
     def load_trafo(self, config_dict):
         self.gene_trafo_index = config_dict['gene_trafo_index']
@@ -136,11 +135,7 @@ class GA:
             # Evolve to the next generation
             self.next_gen(gen)
 
-        return self.data.results
-
-    def post_process(self):
-        self.data.judge()
-        return self.data.results
+        return self.data
 
     def evaluate_population(self, inputs_wfm, gene_pool, target_wfm):
         '''Optimisation function of the platform '''
@@ -159,27 +154,9 @@ class GA:
             x_dummy[:, self.input_indices] = self._input_trafo(inputs_wfm, gene_pool[j, self.gene_trafo_index]).T
             x_dummy[:, self.control_voltage_genes_indices] = control_voltage_genes
 
-            output_popul[j] = self.processor.forward(x_dummy)
+            output_popul[j] = self.processor.get_output(x_dummy)
 
         return output_popul
-
-    def post_processing(self):
-        max_fitness = np.max(self.results['fitness_array'])
-        ind = np.unravel_index(np.argmax(self.results['fitness_array'], axis=None), self.results['fitness_array'].shape)
-        best_genome = self.results['gene_array'][ind]
-        best_output = self.results['output_array'][ind]
-        best_corr = self.corr(best_output)
-
-        y = best_output[self.results['mask']][:, np.newaxis]
-        trgt = self.results['targets'][self.results['mask']][:, np.newaxis]
-        accuracy, _, _ = perceptron(y, trgt)
-        self.process_results(best_output, max_fitness, best_corr, best_genome, accuracy)
-
-    def corr(self, x):
-        x = x[self.results['mask']][np.newaxis, :]
-        y = self.results['targets'][self.results['mask']][np.newaxis, :]
-        return np.corrcoef(np.concatenate((x, y), axis=0))[0, 1]
-        # return self.results['corr']
 
     def stop_condition(self, max_fit):
         best = self.outputs[self.fitness == max_fit][0]
@@ -193,7 +170,7 @@ class GA:
     def save_results(self):
         save_directory = create_directory_timestamp(self.save_path, self.save_dir)
         save(mode='configs', path=save_directory, filename='configs.json', data=self.config_dict)
-        save(mode='pickle', path=save_directory, filename='result.pickle', data=self.interface.results)
+        save(mode='pickle', path=save_directory, filename='result.pickle', data=self.data.results)
 # %% Step to next generation
 
     def next_gen(self, gen):
