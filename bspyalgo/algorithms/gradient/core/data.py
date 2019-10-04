@@ -1,5 +1,4 @@
 import numpy as np
-from bspyalgo.utils.accuracy_test import perceptron
 from bspyproc.processors.simulation.dopanet import DNPU
 
 
