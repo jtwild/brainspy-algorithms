@@ -9,11 +9,7 @@ import random
 import numpy as np
 
 from bspyalgo.algorithms.genetic.core.fitness import choose_fitness_function
-from bspyalgo.algorithms.genetic.core.evaluation import choose_evaluation_function
-from bspyalgo.utils.io import create_directory_timestamp
-from bspyalgo.interface.interface_manager import get_interface
-from bspyalgo.algorithms.optimizer_data import OptimizerData
-from bspyalgo.utils.io import save
+from bspyalgo.utils.io import create_directory_timestamp, save
 from bspyalgo.algorithms.genetic.core.trafo import get_trafo
 from bspyproc.processors.processor_mgr import get_processor
 from bspyalgo.algorithms.genetic.core.data import GAData
