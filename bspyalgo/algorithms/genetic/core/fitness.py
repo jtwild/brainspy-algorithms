@@ -5,7 +5,7 @@ Created on Wed Aug 21 13:14:52 2019
 @author: HCRuiz
 """
 import numpy as np
-from bspyalgo.algorithms.genetic.core.classifier import perceptron
+from bspyalgo.utils.performance import perceptron
 
 # TODO: implement corr_lin_fit (AF's last fitness function)?
 

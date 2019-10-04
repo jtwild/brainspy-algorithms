@@ -1,5 +1,5 @@
 {
-    "algorithm": "gadient_descent",
+    "algorithm": "gradient_descent",
     "results_path": "tmp/output/models/nn_test/",
     "experiment_name": "TEST",
     "hyperparameters": {
