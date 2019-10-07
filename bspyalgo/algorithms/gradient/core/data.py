@@ -10,11 +10,12 @@ class GDData:
         self.results['targets'] = targets
         self.nr_epochs = nr_epochs
         self.results['processor'] = processor
-        if validation_data is not (None, None):
+        if validation_data[0] is not None and validation_data[1] is not None:
             assert len(validation_data[0]) == len(validation_data[1]), f'No. of validation input data {len(validation_data[0])} does not match no. of validation targets {len(validation_data[1])}'
             self.results['inputs_val'] = validation_data[0]
             self.results['targets_val'] = validation_data[1]
             self.results['performance_history'] = np.zeros((self.nr_epochs, 2))
+            print('VALIDATION DATA IS AVAILABLE')
         else:
             self.results['performance_history'] = np.zeros((self.nr_epochs, 1))
 

@@ -1,12 +1,11 @@
 {
     "algorithm": "gradient_descent",
-    "results_path": "tmp/output/models/nn_test/",
     "experiment_name": "TEST",
     "hyperparameters": {
-        "nr_epochs": 3000,
+        "nr_epochs": 1000,
         "batch_size": 128,
-        "learning_rate": 0.0001,
-        "save_interval": 10
+        "learning_rate": 0.007,
+        "save_interval": 100
     },
     "processor": {
               "platform": "simulation",
