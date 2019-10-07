@@ -7,7 +7,6 @@ Created on Fri Jun  1 11:42:27 2018
 """
 
 import numpy as np
-from matplotlib import pyplot as plt
 
 
 def perceptron(wvfrm, target, tolerance=0.01, max_iter=200):
@@ -77,7 +76,7 @@ def accuracy(best_output, targets, mask):
 
 
 if __name__ == '__main__':
-
+    from matplotlib import pyplot as plt
     # XOR as target
     target = np.zeros((800, 1))
     target[200:600] = 1
