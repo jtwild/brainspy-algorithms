@@ -63,7 +63,9 @@ class GD:
     def loss_with_regularizer(self, y_pred, y_train):
         return self.loss_fn(y_pred, y_train) + self.processor.regularizer()
 
-    def optimize(self, inputs, targets, validation_data=(None, None)):
+# TODO: Implement feeding the validation_data and mask as optional kwargs
+
+    def optimize(self, inputs, targets, validation_data=(None, None), mask=False):
         """Wraps trainer function in sgd_torch for use in algorithm_manager.
         """
 

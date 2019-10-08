@@ -2,6 +2,7 @@
 in a scenario where the optimizers must be exchangeble.'''
 
 import numpy as np
+import matplotlib.pyplot as plt
 from bspyalgo.utils.performance import perceptron
 from bspyalgo.algorithm_manager import get_algorithm
 from bspyproc.utils.pytorch import TorchUtils as torchutils
@@ -11,26 +12,32 @@ XNOR = np.load('tests/inputs/XNOR_validation.npz')
 # Keys: ['inputs', 'targets', 'mask', 'inputs_val', 'targets_val']
 
 
-def task_to_solve(algorithm, INPUTS, TARGETS, INPUTS_VAL, TARGETS_VAL, validation=False):
+def task_to_solve(algorithm, INPUTS, TARGETS, INPUTS_VAL, TARGETS_VAL,
+                  validation=False, mask=False, plot=False):
     found = False
     for run in range(4):
         if validation:
-            data = algorithm.optimize(INPUTS, TARGETS, validation_data=(INPUTS_VAL, TARGETS_VAL))
+            data = algorithm.optimize(INPUTS, TARGETS, validation_data=(INPUTS_VAL, TARGETS_VAL), mask=mask)
         else:
-            data = algorithm.optimize(INPUTS, TARGETS)
-            TARGETS_VAL = TARGETS
+            data = algorithm.optimize(INPUTS, TARGETS, mask=mask)
 
         OUTPUTS = data.results['best_output']
         if type(OUTPUTS) is torch.Tensor:
-            accuracy, _, _ = perceptron(OUTPUTS.data.numpy(), TARGETS_VAL.data.numpy())
+            accuracy, _, _ = perceptron(OUTPUTS.data.numpy(), TARGETS.data.numpy())
         else:
-            accuracy, _, _ = perceptron(OUTPUTS, TARGETS_VAL)
+            accuracy, _, _ = perceptron(OUTPUTS, TARGETS)
 
         print(f'accuracy in {run} is {accuracy}')
         if accuracy > 0.95:
             found = True
             break
     assert found, f'Gate not found; accuracy was {accuracy}'
+    if plot:
+        plt.figure()
+        plt.plot(OUTPUTS, 'r')
+        plt.plot(TARGETS, 'k')
+        plt.legend(['output', 'targets'])
+        plt.show()
 
 # Tests
 
@@ -59,7 +66,7 @@ def test_ga_devicemodel():
     INPUTS_VAL = XNOR['inputs_val']
     TARGETS_VAL = XNOR['targets_val']
     ga_devicemodel = get_algorithm('./configs/ga/ga_configs_template.json')
-    task_to_solve(ga_devicemodel, INPUTS, TARGETS, INPUTS_VAL, TARGETS_VAL)
+    task_to_solve(ga_devicemodel, INPUTS, TARGETS, INPUTS_VAL, TARGETS_VAL, mask=XNOR['mask'])
 
 
 # def test_ga_device():
@@ -72,5 +79,5 @@ def test_ga_devicemodel():
 
 
 if __name__ == '__main__':
-    # test_ga_devicemodel()
+    test_ga_devicemodel()
     test_gd_dnpu()
