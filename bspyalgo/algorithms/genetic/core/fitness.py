@@ -83,9 +83,7 @@ def corrsig_fit(outputpool, target, clipvalue=np.inf):
             max_0 = np.max(output[buff0])
             min_1 = np.min(output[buff1])
             sep = min_1 - max_0
-            x = output[:, np.newaxis]
-            y = target[:, np.newaxis]
-            X = np.stack((x, y), axis=0)[:, :, 0]
+            X = np.stack((output, target), axis=0)[:, :, 0]
             corr = np.corrcoef(X)[0, 1]
             if sep >= 0:
                 fit = sig(sep) * corr
