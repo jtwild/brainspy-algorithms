@@ -2,11 +2,12 @@ import numpy as np
 
 
 class GAData:
-    def __init__(self, inputs, targets, hyperparams):  # , waveform_configs):
+    def __init__(self, inputs, targets, mask, hyperparams):  # , waveform_configs):
         assert len(inputs[0]) == len(targets), f'No. of input data {len(inputs)} does not match no. of targets {len(targets)}'
         self.results = {}
         self.results['inputs'] = inputs
         self.results['targets'] = targets
+        self.results['mask'] = mask
         self.reset(hyperparams)
 
     def update(self, next_sate):
@@ -17,14 +18,15 @@ class GAData:
 
     def reset(self, hyperparams):
         # Define placeholders
-        self.results['control_voltage_array'] = np.zeros((hyperparams['epochs'], hyperparams['genomes'], hyperparams['genes']))
-        self.results['output_current_array'] = np.zeros((hyperparams['epochs'], hyperparams['genomes'], len(self.results['targets'])))
+        self.results['control_voltage_array'] = np.zeros((hyperparams['epochs'], hyperparams['genomes'],
+                                                          hyperparams['genes']))
+        self.results['output_current_array'] = np.zeros((hyperparams['epochs'], hyperparams['genomes'])
+                                                        + self.results['targets'].shape)
         self.results['fitness_array'] = -np.inf * np.ones((hyperparams['epochs'], hyperparams['genomes']))
         # return self.results['inputs'], self.results['targets']
 
     def judge(self):
-        self.results['performance_history'] = np.max(self.results['fitness_array'], axis=1)
-        ind = np.unravel_index(np.argmax(self.results['fitness_array'], axis=None), self.results['fitness_array'].shape)  # Best control voltage indices
+        ind = np.unravel_index(np.argmax(self.results['fitness_array'], axis=None), self.results['fitness_array'].shape)
         self.results['best_output'] = self.results['output_current_array'][ind]
         self.results['best_control_voltage'] = self.results['control_voltage_array'][ind]
         self.results['max_fitness'] = np.max(self.results['fitness_array'])
