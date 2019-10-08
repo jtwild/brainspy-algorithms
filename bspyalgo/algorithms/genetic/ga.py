@@ -95,12 +95,13 @@ class GA:
         self.config_dict['hyperparameters']['genes'] = self.genes
         self.config_dict['hyperparameters']['genomes'] = self.genomes
 # %% Method implementing evolution
-
+# TODO: Implement feeding the validation_data and mask as optional kwargs
     def optimize(self, inputs, targets, validation_data=(None, None), mask=False):
 
         np.random.seed(seed=self.seed)
-
-        if not mask:
+        if (validation_data[0] is not None) and (validation_data[1] is not None):
+            print('======= WARNING: Validation data is not processed in GA =======')
+        if len(mask) <= 1:
             mask = np.ones(targets.shape[0], dtype=bool)
         self.data = GAData(inputs, targets, mask, self.config_dict['hyperparameters'])
         targets = targets[mask]
