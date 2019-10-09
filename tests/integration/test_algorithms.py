@@ -15,58 +15,74 @@ XNOR = np.load('tests/inputs/XNOR_validation.npz')
 def task_to_solve(algorithm, INPUTS, TARGETS, INPUTS_VAL, TARGETS_VAL,
                   validation=False, mask=False, plot=False):
     found = False
-    for run in range(4):
+    for run in range(10):
         if validation:
             data = algorithm.optimize(INPUTS, TARGETS, validation_data=(INPUTS_VAL, TARGETS_VAL), mask=mask)
+            OUTPUTS = data.results['best_output']
+            accuracy = get_accuracy(OUTPUTS, TARGETS_VAL)
         else:
             data = algorithm.optimize(INPUTS, TARGETS, mask=mask)
-
-        OUTPUTS = data.results['best_output']
-        if type(OUTPUTS) is torch.Tensor:
-            accuracy, _, _ = perceptron(OUTPUTS.data.numpy(), TARGETS.data.numpy())
-        else:
-            accuracy, _, _ = perceptron(OUTPUTS, TARGETS)
+            OUTPUTS = data.results['best_output']
+            accuracy = get_accuracy(OUTPUTS, TARGETS)
 
         print(f'accuracy in {run} is {accuracy}')
         if accuracy > 0.95:
             found = True
             break
     assert found, f'Gate not found; accuracy was {accuracy}'
+
+    if type(OUTPUTS) is torch.Tensor:
+        OUTPUTS = OUTPUTS.cpu().numpy()
+        if validation:
+            TARGETS = TARGETS_VAL.cpu().numpy()
+        else:
+            TARGETS = TARGETS.cpu().numpy()
     if plot:
         plt.figure()
         plt.plot(OUTPUTS, 'r')
-        plt.plot(TARGETS, 'k')
+        plt.plot(TARGETS, 'ok')
         plt.legend(['output', 'targets'])
         plt.show()
+
+
+def get_accuracy(x, targets):
+    if isinstance(x, torch.Tensor):
+        accuracy, _, _ = perceptron(x.cpu().data.numpy(), targets.cpu().data.numpy())
+    else:
+        accuracy, _, _ = perceptron(x, targets)
+    return accuracy
 
 # Tests
 
 
-def test_gd_dnpu():
+def test_gd_dnpu(validation=True, plot=False):
     INPUTS = torchutils.get_tensor_from_numpy(XNOR['inputs'].T)
     TARGETS = torchutils.get_tensor_from_numpy(XNOR['targets'])
     INPUTS_VAL = torchutils.get_tensor_from_numpy(XNOR['inputs_val'].T)
     TARGETS_VAL = torchutils.get_tensor_from_numpy(XNOR['targets_val'])
     gd_dnpu = get_algorithm('./configs/gd/gd_configs_template.json')
-    task_to_solve(gd_dnpu, INPUTS, TARGETS, INPUTS_VAL, TARGETS_VAL)
+    task_to_solve(gd_dnpu, INPUTS, TARGETS, INPUTS_VAL, TARGETS_VAL,
+                  validation=validation, plot=plot)
 
 
-def test_gd_nn():
+def test_gd_nn(validation=True, plot=False):
     INPUTS = torchutils.get_tensor_from_numpy(XNOR['inputs'].T)
     TARGETS = torchutils.get_tensor_from_numpy(XNOR['targets'])
     INPUTS_VAL = torchutils.get_tensor_from_numpy(XNOR['inputs_val'].T)
     TARGETS_VAL = torchutils.get_tensor_from_numpy(XNOR['targets_val'])
     gd_nn = get_algorithm('./configs/gd/nnmodel_configs_template.json')
-    task_to_solve(gd_nn, INPUTS, TARGETS, INPUTS_VAL, TARGETS_VAL)
+    task_to_solve(gd_nn, INPUTS, TARGETS, INPUTS_VAL, TARGETS_VAL,
+                  validation=validation, plot=plot)
 
 
-def test_ga_devicemodel():
+def test_ga_devicemodel(validation=False, plot=False):
     INPUTS = XNOR['inputs']
     TARGETS = XNOR['targets']
     INPUTS_VAL = XNOR['inputs_val']
     TARGETS_VAL = XNOR['targets_val']
     ga_devicemodel = get_algorithm('./configs/ga/ga_configs_template.json')
-    task_to_solve(ga_devicemodel, INPUTS, TARGETS, INPUTS_VAL, TARGETS_VAL, mask=XNOR['mask'])
+    task_to_solve(ga_devicemodel, INPUTS, TARGETS, INPUTS_VAL, TARGETS_VAL, mask=XNOR['mask'],
+                  validation=validation, plot=plot)
 
 
 # def test_ga_device():
@@ -79,6 +95,7 @@ def test_ga_devicemodel():
 
 
 if __name__ == '__main__':
-    # test_ga_devicemodel()
-    # test_gd_dnpu()
-    test_gd_nn()
+    # torchutils.force_cpu = True
+    test_gd_dnpu(plot=True)
+    # test_gd_nn(plot=True)
+    # test_ga_devicemodel(plot=True)
