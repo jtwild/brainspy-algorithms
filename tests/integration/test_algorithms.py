@@ -51,13 +51,13 @@ def test_gd_dnpu():
     task_to_solve(gd_dnpu, INPUTS, TARGETS, INPUTS_VAL, TARGETS_VAL)
 
 
-# def test_gd_nn():
-    # INPUTS = torchutils.get_tensor_from_numpy(XNOR['inputs'].T)
-    # TARGETS = torchutils.get_tensor_from_numpy(XNOR['targets'])
-    # INPUTS_VAL = torchutils.get_tensor_from_numpy(XNOR['inputs_val'].T)
-    # TARGETS_VAL = torchutils.get_tensor_from_numpy(XNOR['targets_val'])
-#     gd_nn = get_algorithm('./configs/gd/nn_training_configs_template.json')
-#     task_to_solve(gd_nn,INPUTS,TARGETS,INPUTS_VAL,TARGETS_VAL)
+def test_gd_nn():
+    INPUTS = torchutils.get_tensor_from_numpy(XNOR['inputs'].T)
+    TARGETS = torchutils.get_tensor_from_numpy(XNOR['targets'])
+    INPUTS_VAL = torchutils.get_tensor_from_numpy(XNOR['inputs_val'].T)
+    TARGETS_VAL = torchutils.get_tensor_from_numpy(XNOR['targets_val'])
+    gd_nn = get_algorithm('./configs/gd/nnmodel_configs_template.json')
+    task_to_solve(gd_nn, INPUTS, TARGETS, INPUTS_VAL, TARGETS_VAL)
 
 
 def test_ga_devicemodel():
@@ -79,5 +79,6 @@ def test_ga_devicemodel():
 
 
 if __name__ == '__main__':
-    test_ga_devicemodel()
-    test_gd_dnpu()
+    # test_ga_devicemodel()
+    # test_gd_dnpu()
+    test_gd_nn()
