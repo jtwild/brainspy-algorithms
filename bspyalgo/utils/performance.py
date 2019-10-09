@@ -7,7 +7,6 @@ Created on Fri Jun  1 11:42:27 2018
 """
 
 import numpy as np
-from matplotlib import pyplot as plt
 
 
 def perceptron(wvfrm, target, tolerance=0.01, max_iter=200):
@@ -62,11 +61,12 @@ def f(x):
     return float(x < 0)
 
 
-def corr(self, x):
-    x = x[self.results['mask']][np.newaxis, :]
-    y = self.results['targets'][self.results['mask']][np.newaxis, :]
+def corr_coeff(data):
+    x = data.results['best_output'][data.results['mask']].T
+    y = data.results['targets'][data.results['mask']].T
     return np.corrcoef(np.concatenate((x, y), axis=0))[0, 1]
-    # return self.results['corr']
+
+# TODO: use data object to get the accuracy (see corr_coeff above)
 
 
 def accuracy(best_output, targets, mask):
@@ -77,7 +77,7 @@ def accuracy(best_output, targets, mask):
 
 
 if __name__ == '__main__':
-
+    from matplotlib import pyplot as plt
     # XOR as target
     target = np.zeros((800, 1))
     target[200:600] = 1

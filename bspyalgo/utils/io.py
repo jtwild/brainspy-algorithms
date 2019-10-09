@@ -22,12 +22,12 @@ def save(mode, path, filename, **kwargs):
         elif mode == 'pickle':
             pickle.dump(kwargs['data'], open(file_path, "wb"))
         elif mode == 'torch':
-            save_torch(kwargs['data'])
+            save_torch(kwargs['data'], file_path)
         else:
             raise NotImplementedError(f"Mode {mode} is not recognised. Please choose a value between 'numpy', 'torch', 'pickle' and 'configs'.")
 
 
-def save_torch(torch_model):
+def save_torch(torch_model, file_path):
     """
         Saves the model in given path, all other attributes are saved under
         the 'info' key as a new dictionary.
@@ -69,7 +69,6 @@ def create_directory_timestamp(path, name):
 
 
 if __name__ == '__main__':
-    import numpy as np
 
     GA_EVALUATION_CONFIGS = {}
 
