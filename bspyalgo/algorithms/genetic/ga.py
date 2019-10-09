@@ -10,6 +10,7 @@ import numpy as np
 
 from bspyalgo.algorithms.genetic.core.fitness import choose_fitness_function
 from bspyalgo.utils.io import create_directory_timestamp, save
+from bspyalgo.utils.performance import corr_coeff
 from bspyalgo.algorithms.genetic.core.trafo import get_trafo
 from bspyproc.processors.processor_mgr import get_processor
 from bspyalgo.algorithms.genetic.core.data import GAData
@@ -94,12 +95,16 @@ class GA:
         self.config_dict['hyperparameters']['genes'] = self.genes
         self.config_dict['hyperparameters']['genomes'] = self.genomes
 # %% Method implementing evolution
+# TODO: Implement feeding the validation_data and mask as optional kwargs
+    def optimize(self, inputs, targets, validation_data=(None, None), mask=False):
 
-    def optimize(self, inputs, targets):
-        # data = OptimizerData(inputs, targets)
         np.random.seed(seed=self.seed)
-
-        self.data = GAData(inputs, targets, self.config_dict['hyperparameters'])
+        if (validation_data[0] is not None) and (validation_data[1] is not None):
+            print('======= WARNING: Validation data is not processed in GA =======')
+        if len(mask) <= 1:
+            mask = np.ones(targets.shape[0], dtype=bool)
+        self.data = GAData(inputs, targets, mask, self.config_dict['hyperparameters'])
+        targets = targets[mask]
         self.pool = np.zeros((self.genomes, self.genes))
         self.opposite_pool = np.zeros((self.genomes, self.genes))
         for i in range(0, self.genes):
@@ -110,7 +115,7 @@ class GA:
             start = time.time()
 
             self.outputs = self.evaluate_population(inputs, self.pool, targets)
-            self.fitness = self.fitness_function(self.outputs, targets)
+            self.fitness = self.fitness_function(self.outputs[:, mask], targets)
 
             # Status print
             max_fit = max(self.fitness)
@@ -124,24 +129,30 @@ class GA:
 
             end = time.time()
             print("Generation nr. " + str(gen + 1) + " completed; took " + str(end - start) + " sec.")
-            if self.stop_condition(max_fit):
+            stop = self.stop_condition(max_fit)
+            if stop:
                 print('--- final saving ---')
                 self.save_results()
                 break
             # Evolve to the next generation
             self.next_gen(gen)
 
+        self.data.results['performance_history'] = np.max(self.data.results['fitness_array'], axis=1)
+        if not stop:
+            ind = np.unravel_index(np.argmax(self.data.results['fitness_array'], axis=None),
+                                   self.data.results['fitness_array'].shape)
+            self.data.results['best_output'] = self.data.results['output_current_array'][ind]
         return self.data
 
     def evaluate_population(self, inputs_wfm, gene_pool, target_wfm):
         '''Optimisation function of the platform '''
         genomes = len(gene_pool)
-        output_popul = np.zeros((genomes, target_wfm.shape[-1]))
+        output_popul = np.zeros((genomes,) + target_wfm.shape)
 
         for j in range(genomes):
             # Feed input to NN
             # target_wfm.shape, genePool.shape --> (time-steps,) , (nr-genomes,nr-genes)
-            control_voltage_genes = np.ones_like(target_wfm)[:, np.newaxis] * gene_pool[j, self.control_voltage_genes_indices, np.newaxis].T
+            control_voltage_genes = np.ones_like(target_wfm) * gene_pool[j, :, np.newaxis].T  # expand genome j into time-steps -> (time-steps,nr-genes)
 
             # g.shape,x.shape --> (time-steps,nr-CVs) , (input-dim, time-steps)
             x_dummy = np.empty((control_voltage_genes.shape[0], self.input_electrode_no))  # dims of input (time-steps)xD_in
@@ -155,8 +166,8 @@ class GA:
         return output_popul
 
     def stop_condition(self, max_fit):
-        best = self.outputs[self.fitness == max_fit][0]
-        corr = self.interface.corr(best)
+        self.data.results["best_output"] = self.outputs[self.fitness == max_fit][0]
+        corr = corr_coeff(self.data)
         print(f"Correlation of fittest genome: {corr}")
         if corr >= self.stop_thr:
             print(f'Very high correlation achieved, evolution will stop! \

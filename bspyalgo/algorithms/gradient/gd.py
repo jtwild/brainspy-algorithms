@@ -1,5 +1,4 @@
 # TODO: ''' '''
-import numpy as np
 import torch
 
 from bspyproc.processors.processor_mgr import get_processor
@@ -12,7 +11,7 @@ def get_gd(configs):
         raise NotImplementedError('Hardware platform not implemented')
         # TODO: Implement the lock in algorithm class
     elif configs['processor']['platform'] == 'simulation':
-        return GD(configs['hyperparameters'], configs['processor'])
+        return GD(configs)
     else:
         raise NotImplementedError('Platform not implemented')
 
@@ -20,23 +19,20 @@ def get_gd(configs):
 class GD:
     """
     Trains a neural network given data.
-    Inputs and targets is assumed to be partitioned in training and validation sets s.t.
-    data is passed to trainer in the form
-            data = [(inputs[0], targets[0]), (inputs[1], targets[1])]
-
+    Inputs and targets is assumed to be partitioned in training and validation sets.
+    If saving is needed use key in config file : "results_path": "tmp/output/models/nn_test/"
     @author: hruiz
     """
 
-    def __init__(self, hyperparams, processor_configs, loss_fn=torch.nn.MSELoss()):
-
-        self.processor_configs = processor_configs
-        self.hyperparams = hyperparams
+    def __init__(self, configs, loss_fn=torch.nn.MSELoss()):
+        self.configs = configs
+        self.hyperparams = configs["hyperparameters"]
         self.loss_fn = loss_fn
         self.reset_processor()
 
     def reset_processor(self):
 
-        self.processor = get_processor(self.processor_configs)
+        self.processor = get_processor(self.configs["processor"])
         self.load_configs()
         if 'regularizer' in dir(self.processor):
             self.loss_function = self.loss_with_regularizer
@@ -59,32 +55,31 @@ class GD:
             self.optimizer = torch.optim.Adam(self.processor.parameters(),
                                               lr=self.hyperparams['learning_rate'])
         print('Prediction using ADAM optimizer')
-        if 'results_path' in self.hyperparams.keys():
-            self.dir_path = create_directory_timestamp(self.hyperparams['results_path'], self.hyperparams['experiment_name'])
+        if 'results_path' in self.configs.keys():
+            self.dir_path = create_directory_timestamp(self.configs['results_path'], self.configs['experiment_name'])
         else:
             self.dir_path = None
 
     def loss_with_regularizer(self, y_pred, y_train):
         return self.loss_fn(y_pred, y_train) + self.processor.regularizer()
 
-    def get_torch_model_path(self):
-        return self.hyperparams['model_configs']['torch_model_path']
+# TODO: Implement feeding the validation_data and mask as optional kwargs
 
-    def optimize(self, inputs, targets, validation_data=(None, None)):
+    def optimize(self, inputs, targets, validation_data=(None, None), mask=False):
         """Wraps trainer function in sgd_torch for use in algorithm_manager.
         """
 
         self.reset_processor()
         data = GDData(inputs, targets, self.hyperparams['nr_epochs'], self.processor, validation_data)
-        if(validation_data is not (None, None)):
-            data = self.sgd_train(data)
+        if validation_data[0] is not None and validation_data[1] is not None:
+            data = self.sgd_train_with_validation(data)
         else:
             data = self.sgd_train_without_validation(data)
         if self.dir_path:
             self.save_results('trained_network.pt')
         return data
 
-    def sgd_train(self, data):
+    def sgd_train_with_validation(self, data):
         x_train = data.results['inputs']
         y_train = data.results['targets']
         x_val = data.results['inputs_val']
@@ -93,7 +88,7 @@ class GD:
             self.train_step(x_train, y_train)
             data.results['performance_history'][epoch, 0], prediction_training = self.evaluate_training_error(x_val, x_train, y_train)
             data.results['performance_history'][epoch, 1], prediction_validation = self.evaluate_validation_error(x_val, y_val)
-            if self.dir_path and (epoch + 1) % SGD_CONFIGS['save_interval'] == 0:
+            if self.dir_path and (epoch + 1) % self.hyperparams['save_interval'] == 0:
                 save('torch', self.dir_path, f'checkpoint_epoch{epoch}.pt', data=self.processor)
             if epoch % 10 == 0:
                 print('Epoch:', epoch,
@@ -104,15 +99,14 @@ class GD:
         return data
 
     def sgd_train_without_validation(self, data):
-        # Define variables
-        prediction = None
-        # costs = np.zeros((self.hyperparams['nr_epochs'], 2))  # training and validation costs per epoch
+        x_train = data.results['inputs']
+        y_train = data.results['targets']
         for epoch in range(self.hyperparams['nr_epochs']):
-            self.train_step(data.results['inputs'])
+            self.train_step(x_train, y_train)
             with torch.no_grad():
                 prediction = self.processor(data.results['inputs'])
                 data.results['performance_history'][epoch] = self.loss_fn(prediction, data.results['targets']).item()
-            if self.dir_path and (epoch + 1) % SGD_CONFIGS['save_interval'] == 0:
+            if self.dir_path and (epoch + 1) % self.hyperparams['save_interval'] == 0:
                 save('torch', self.dir_path, f'checkpoint_epoch{epoch}.pt', data=self.processor)
             if epoch % 10 == 0:
                 print('Epoch:', epoch, 'Training Error:', data.results['performance_history'][epoch])
