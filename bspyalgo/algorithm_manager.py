@@ -18,13 +18,10 @@ from bspyalgo.utils.io import load_configs
 # TODO: Add simulation platform
 # TODO: Target wave form as argument can be left out if output dimension is known internally
 
-# %% Chip platform to measure the current output from
-# voltage configurations of disordered NE systems
 
-
-def get_algorithm(configs_dir):
-
-    configs = load_configs(configs_dir)
+def get_algorithm(configs):
+    if(isinstance(configs, str)):       # Enable to load configs as a path to configurations or as a dictionary
+        configs = load_configs(configs)
 
     if configs['algorithm'] == 'genetic':
         return GA(configs)
