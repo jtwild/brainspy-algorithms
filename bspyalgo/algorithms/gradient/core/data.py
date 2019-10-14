@@ -23,9 +23,9 @@ class GDData:
     # def update(self, next_sate):
 
     def judge(self):
-        self.results['final_cost'] = self.results['performance_history'][-1]
+        self.results['best_performance'] = self.results['performance_history'][-1]
         if isinstance(self.results['processor'], DNPU):
-            self.results['best_control_voltage'] = list(self.results['processor'].parameters())[0]
+            self.results['control_voltages'] = list(self.results['processor'].parameters())[0]
         self.print_results()
 
     def print_results(self):  # print(best_output.shape,self.target_wfm.shape)

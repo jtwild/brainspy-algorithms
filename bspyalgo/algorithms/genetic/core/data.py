@@ -28,12 +28,12 @@ class GAData:
     def judge(self):
         ind = np.unravel_index(np.argmax(self.results['fitness_array'], axis=None), self.results['fitness_array'].shape)
         self.results['best_output'] = self.results['output_current_array'][ind]
-        self.results['best_control_voltage'] = self.results['control_voltage_array'][ind]
-        self.results['max_fitness'] = np.max(self.results['fitness_array'])
+        self.results['control_voltages'] = self.results['control_voltage_array'][ind]
+        self.results['best_performance'] = np.max(self.results['fitness_array'])
         self.print_results()
 
     def print_results(self):  # print(best_output.shape,self.target_wfm.shape)
         print(f'\n========================= BEST SOLUTION =======================')
         print('Performance: ', self.results['max_fitness'])
-        print(f"Control voltages:\n {self.results['best_control_voltage']}")
+        print(f"Control voltages:\n {self.results['best_control_voltages']}")
         print('===============================================================')
