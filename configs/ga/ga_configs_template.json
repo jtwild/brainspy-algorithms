@@ -3,10 +3,6 @@
   "results_path": "tmp/output/genetic_algorithm/",
   "experiment_name": "TEST",
   "stop_threshold": 0.9,
-  "waveform_configs": {
-            "lengths": 80,
-            "slopes": 0
-  },
   "processor": {
             "platform": "simulation",
             "simulation_type": "neural_network",
