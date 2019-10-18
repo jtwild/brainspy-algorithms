@@ -36,5 +36,5 @@ class GAData:
     def print_results(self):  # print(best_output.shape,self.target_wfm.shape)
         print(f'\n========================= BEST SOLUTION =======================')
         print('Max fitness: ', self.results['best_performance'])
-        print(f"Control voltages:\n {self.results['control_voltages']}")
+        print(f"Best control voltages:\n {self.results['control_voltages']}")
         print('===============================================================')
