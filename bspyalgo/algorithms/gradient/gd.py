@@ -1,6 +1,6 @@
 # TODO: ''' '''
 import torch
-
+from tqdm import trange
 from bspyproc.processors.processor_mgr import get_processor
 from bspyalgo.utils.io import save, create_directory_timestamp
 from bspyalgo.algorithms.gradient.core.data import GDData
@@ -84,16 +84,16 @@ class GD:
         y_train = data.results['targets']
         x_val = data.results['inputs_val']
         y_val = data.results['targets_val']
-        for epoch in range(self.hyperparams['nr_epochs']):
+        looper = trange(self.hyperparams['nr_epochs'], desc='Initialising')
+        for epoch in looper:
             self.train_step(x_train, y_train)
             data.results['performance_history'][epoch, 0], prediction_training = self.evaluate_training_error(x_val, x_train, y_train)
             data.results['performance_history'][epoch, 1], prediction_validation = self.evaluate_validation_error(x_val, y_val)
             if self.dir_path and (epoch + 1) % self.hyperparams['save_interval'] == 0:
                 save('torch', self.dir_path, f'checkpoint_epoch{epoch}.pt', data=self.processor)
             if epoch % 10 == 0:
-                print('Epoch:', epoch,
-                      'Training Error:', data.results['performance_history'][epoch, 0],
-                      'Val. Error:', data.results['performance_history'][epoch, 1])
+                description = ' Epoch: ' + str(epoch) + ' Training Error:' + str(data.results['performance_history'][epoch, 0]) + ' Val. Error:' + str(data.results['performance_history'][epoch, 1])
+                looper.set_description(description)
         data.set_result_as_numpy('best_output', prediction_validation)
         data.set_result_as_numpy('best_output_training', prediction_training)
         return data
@@ -101,7 +101,8 @@ class GD:
     def sgd_train_without_validation(self, data):
         x_train = data.results['inputs']
         y_train = data.results['targets']
-        for epoch in range(self.hyperparams['nr_epochs']):
+        looper = trange(self.hyperparams['nr_epochs'], desc='Initialising')
+        for epoch in looper:
             self.train_step(x_train, y_train)
             with torch.no_grad():
                 prediction = self.processor(data.results['inputs'])
@@ -109,7 +110,8 @@ class GD:
             if self.dir_path and (epoch + 1) % self.hyperparams['save_interval'] == 0:
                 save('torch', self.dir_path, f'checkpoint_epoch{epoch}.pt', data=self.processor)
             if epoch % 10 == 0:
-                print('Epoch:', epoch, 'Training Error:', data.results['performance_history'][epoch])
+                description = ' Epoch: ' + str(epoch) + ' Training Error:' + str(data.results['performance_history'][epoch])
+                looper.set_description(description)
         data.set_result_as_numpy('best_output', prediction)
         return data
 
