@@ -14,6 +14,7 @@ from bspyalgo.utils.performance import corr_coeff
 from bspyalgo.algorithms.genetic.core.trafo import get_trafo
 from bspyproc.processors.processor_mgr import get_processor
 from bspyalgo.algorithms.genetic.core.data import GAData
+from tqdm import trange
 # TODO: Implement Plotter
 
 
@@ -115,27 +116,26 @@ class GA:
             self.pool[:, i] = np.random.uniform(self.generange[i][0], self.generange[i][1], size=(self.genomes,))
 
         # Evolution loop
-        for gen in range(self.generations):
+        looper = trange(self.generations, desc='Initialising')
+        for gen in looper:
             start = time.time()
 
             self.outputs = self.evaluate_population(inputs, self.pool, self.data.results['targets'])
             self.fitness = self.fitness_function(self.outputs[:, self.data.results['mask']], self.data.results['targets'][self.data.results['mask']])
 
-            # Status print
+            end = time.time()
+
             max_fit = max(self.fitness)
-            print(f"Highest fitness: {max_fit}")
 
             self.data.update({'generation': gen, 'genes': self.pool, 'outputs': self.outputs, 'fitness': self.fitness})
+            self.data.results["best_output"] = self.outputs[self.fitness == max_fit][0]
+            corr = corr_coeff(self.data)
+            stop = self.stop_condition(corr)
+            looper.set_description(" Generation: " + str(gen + 1) + ". Highest fitness: " + str(max_fit) + ". Correlation of fittest genome: " + str(corr) + ". Completed in: " + str(end - start) + " sec(s).")
             if gen % 5 == 0:
-                # Save generation
-                print('--- checkpoint ---')
                 self.save_results()
-
-            end = time.time()
-            print("Generation nr. " + str(gen + 1) + " completed; took " + str(end - start) + " sec.")
-            stop = self.stop_condition(max_fit)
             if stop:
-                print('--- final saving ---')
+                # print('--- final saving ---')
                 self.save_results()
                 break
             # Evolve to the next generation
@@ -169,10 +169,7 @@ class GA:
 
         return output_popul
 
-    def stop_condition(self, max_fit):
-        self.data.results["best_output"] = self.outputs[self.fitness == max_fit][0]
-        corr = corr_coeff(self.data)
-        print(f"Correlation of fittest genome: {corr}")
+    def stop_condition(self, corr):
         if corr >= self.stop_thr:
             print(f'Very high correlation achieved, evolution will stop! \
                   (correlaton threshold set to {self.stop_thr})')
