@@ -3,10 +3,12 @@ import numpy as np
 
 class GAData:
     def __init__(self, inputs, targets, mask, hyperparams):  # , waveform_configs):
-        assert len(inputs[0]) == len(targets), f'No. of input data {len(inputs)} does not match no. of targets {len(targets)}'
+        assert len(inputs) == len(targets), f'No. of input data {len(inputs)} does not match no. of targets {len(targets)}'
         self.results = {}
         self.results['inputs'] = inputs
         self.results['targets'] = targets
+        if mask is None or len(mask) <= 1:
+            mask = np.ones(targets.shape[0], dtype=bool)
         self.results['mask'] = mask
         self.reset(hyperparams)
 
@@ -20,8 +22,7 @@ class GAData:
         # Define placeholders
         self.results['control_voltage_array'] = np.zeros((hyperparams['epochs'], hyperparams['genomes'],
                                                           hyperparams['genes']))
-        self.results['output_current_array'] = np.zeros((hyperparams['epochs'], hyperparams['genomes'])
-                                                        + self.results['targets'].shape)
+        self.results['output_current_array'] = np.zeros((hyperparams['epochs'], hyperparams['genomes']) + (len(self.results['inputs']), 1))
         self.results['fitness_array'] = -np.inf * np.ones((hyperparams['epochs'], hyperparams['genomes']))
         # return self.results['inputs'], self.results['targets']
 
@@ -34,6 +35,6 @@ class GAData:
 
     def print_results(self):  # print(best_output.shape,self.target_wfm.shape)
         print(f'\n========================= BEST SOLUTION =======================')
-        print('Performance: ', self.results['max_fitness'])
-        print(f"Control voltages:\n {self.results['best_control_voltages']}")
+        print('Max fitness: ', self.results['best_performance'])
+        print(f"Control voltages:\n {self.results['control_voltages']}")
         print('===============================================================')
