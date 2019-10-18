@@ -96,15 +96,19 @@ class GA:
         self.config_dict['hyperparameters']['genomes'] = self.genomes
 # %% Method implementing evolution
 # TODO: Implement feeding the validation_data and mask as optional kwargs
-    def optimize(self, inputs, targets, validation_data=(None, None), mask=False):
 
+    def optimize(self, inputs, targets, validation_data=(None, None), mask=None):
+        '''
+            inputs = The inputs of the algorithm. They need to be in numpy. The GA also requires the input to be a waveform.
+            targets = The targets to which the algorithm will try to fit the inputs. They need to be in numpy.
+            validation_data = In some cases, it is required to provide the validation data in the form of (training_data, validation_data)
+            mask = In cases where the input is a waveform, the mask helps filtering the slopes of the waveform
+        '''
         np.random.seed(seed=self.seed)
         if (validation_data[0] is not None) and (validation_data[1] is not None):
             print('======= WARNING: Validation data is not processed in GA =======')
-        if len(mask) <= 1:
-            mask = np.ones(targets.shape[0], dtype=bool)
+
         self.data = GAData(inputs, targets, mask, self.config_dict['hyperparameters'])
-        targets = targets[mask]
         self.pool = np.zeros((self.genomes, self.genes))
         self.opposite_pool = np.zeros((self.genomes, self.genes))
         for i in range(0, self.genes):
@@ -114,8 +118,8 @@ class GA:
         for gen in range(self.generations):
             start = time.time()
 
-            self.outputs = self.evaluate_population(inputs, self.pool, targets)
-            self.fitness = self.fitness_function(self.outputs[:, mask], targets)
+            self.outputs = self.evaluate_population(inputs, self.pool, self.data.results['targets'])
+            self.fitness = self.fitness_function(self.outputs[:, self.data.results['mask']], self.data.results['targets'][self.data.results['mask']])
 
             # Status print
             max_fit = max(self.fitness)
@@ -147,18 +151,18 @@ class GA:
     def evaluate_population(self, inputs_wfm, gene_pool, target_wfm):
         '''Optimisation function of the platform '''
         genomes = len(gene_pool)
-        output_popul = np.zeros((genomes,) + target_wfm.shape)
+        output_popul = np.zeros((genomes,) + (len(inputs_wfm), 1))
 
         for j in range(genomes):
             # Feed input to NN
             # target_wfm.shape, genePool.shape --> (time-steps,) , (nr-genomes,nr-genes)
-            control_voltage_genes = np.ones_like(target_wfm) * gene_pool[j, :, np.newaxis].T  # expand genome j into time-steps -> (time-steps,nr-genes)
-
+            # control_voltage_genes = np.ones_like(target_wfm) * gene_pool[j, :, np.newaxis].T  # expand genome j into time-steps -> (time-steps,nr-genes)
+            control_voltage_genes = np.broadcast_to(gene_pool[j], (len(inputs_wfm), len(gene_pool[j])))
             # g.shape,x.shape --> (time-steps,nr-CVs) , (input-dim, time-steps)
             x_dummy = np.empty((control_voltage_genes.shape[0], self.input_electrode_no))  # dims of input (time-steps)xD_in
             # Set the input scaling
             # inputs_wfm.shape -> (nr-inputs,nr-time-steps)
-            x_dummy[:, self.input_indices] = self._input_trafo(inputs_wfm, gene_pool[j, self.gene_trafo_index]).T
+            x_dummy[:, self.input_indices] = self._input_trafo(inputs_wfm, gene_pool[j, self.gene_trafo_index])  # .T
             x_dummy[:, self.control_voltage_genes_indices] = control_voltage_genes
 
             output_popul[j] = self.processor.get_output(x_dummy)
