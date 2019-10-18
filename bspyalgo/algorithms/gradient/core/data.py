@@ -25,11 +25,13 @@ class GDData:
 
     # TODO: Create an update function to store the history of the control voltages and output
     # def update(self, next_sate):
+    def set_result_as_numpy(self, result_key, result):
+        self.results[result_key] = TorchUtils.get_numpy_from_tensor(result)
 
     def judge(self):
         self.results['best_performance'] = self.results['performance_history'][-1]
         if isinstance(self.results['processor'], DNPU):
-            self.results['control_voltages'] = TorchUtils.get_numpy_from_tensor(next(self.results['processor'].parameters()).detach())
+            self.set_result_as_numpy('control_voltages', next(self.results['processor'].parameters()).detach())
         self.print_results()
 
     def print_results(self):  # print(best_output.shape,self.target_wfm.shape)
