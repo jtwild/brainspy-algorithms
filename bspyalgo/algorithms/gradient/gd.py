@@ -94,8 +94,8 @@ class GD:
                 print('Epoch:', epoch,
                       'Training Error:', data.results['performance_history'][epoch, 0],
                       'Val. Error:', data.results['performance_history'][epoch, 1])
-        data.results['best_output'] = prediction_validation
-        data.results['best_output_training'] = prediction_training
+        data.set_result_as_numpy('best_output', prediction_validation)
+        data.set_result_as_numpy('best_output_training', prediction_training)
         return data
 
     def sgd_train_without_validation(self, data):
@@ -110,7 +110,7 @@ class GD:
                 save('torch', self.dir_path, f'checkpoint_epoch{epoch}.pt', data=self.processor)
             if epoch % 10 == 0:
                 print('Epoch:', epoch, 'Training Error:', data.results['performance_history'][epoch])
-        data.results['best_output'] = prediction
+        data.set_result_as_numpy('best_output', prediction)
         return data
 
     def train_step(self, x_train, y_train):
