@@ -1,4 +1,5 @@
 import numpy as np
+from bspyalgo.utils.performance import corr_coeff
 
 
 class GAData:
@@ -12,11 +13,14 @@ class GAData:
         self.results['mask'] = mask
         self.reset(hyperparams)
 
-    def update(self, next_sate):
+    def update(self, next_sate, outputs):
         gen = next_sate['generation']
         self.results['control_voltage_array'][gen, :, :] = next_sate['genes']
         self.results['output_current_array'][gen, :, :] = next_sate['outputs']
         self.results['fitness_array'][gen, :] = next_sate['fitness']
+        self.results['best_output'] = outputs[next_sate['fitness'] == max(next_sate['fitness'])][0]
+        self.results['performance_history'] = np.max(self.results['fitness_array'], axis=1)
+        self.results['correlation'] = corr_coeff(self.results['best_output'][self.results['mask']].T, self.results['targets'][self.results['mask']].T)
 
     def reset(self, hyperparams):
         # Define placeholders
@@ -31,7 +35,10 @@ class GAData:
         self.results['best_output'] = self.results['output_current_array'][ind]
         self.results['control_voltages'] = self.results['control_voltage_array'][ind]
         self.results['best_performance'] = np.max(self.results['fitness_array'])
-        self.print_results()
+        # self.print_results()
+
+    def get_description(self, gen):
+        return "  Gen: " + str(gen + 1) + ". Max fitness: " + str(max(self.results['best_output'])) + ". Corr: " + str(self.results['correlation'])
 
     def print_results(self):  # print(best_output.shape,self.target_wfm.shape)
         print(f'\n========================= BEST SOLUTION =======================')

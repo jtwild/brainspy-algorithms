@@ -32,7 +32,7 @@ class GDData:
         self.results['best_performance'] = self.results['performance_history'][-1]
         if isinstance(self.results['processor'], DNPU):
             self.set_result_as_numpy('control_voltages', next(self.results['processor'].parameters()).detach())
-        self.print_results()
+        # self.print_results()
 
     def print_results(self):  # print(best_output.shape,self.target_wfm.shape)
         print(f'\n========================= BEST SOLUTION =======================')

@@ -10,7 +10,6 @@ import numpy as np
 
 from bspyalgo.algorithms.genetic.core.fitness import choose_fitness_function
 from bspyalgo.utils.io import create_directory_timestamp, save
-from bspyalgo.utils.performance import corr_coeff
 from bspyalgo.algorithms.genetic.core.trafo import get_trafo
 from bspyproc.processors.processor_mgr import get_processor
 from bspyalgo.algorithms.genetic.core.data import GAData
@@ -116,36 +115,24 @@ class GA:
             self.pool[:, i] = np.random.uniform(self.generange[i][0], self.generange[i][1], size=(self.genomes,))
 
         # Evolution loop
-        looper = trange(self.generations, desc='Initialising')
+        looper = trange(self.generations, desc='Initialising', leave=False)
         for gen in looper:
-            start = time.time()
 
             self.outputs = self.evaluate_population(inputs, self.pool, self.data.results['targets'])
             self.fitness = self.fitness_function(self.outputs[:, self.data.results['mask']], self.data.results['targets'][self.data.results['mask']])
 
-            end = time.time()
+            self.data.update({'generation': gen, 'genes': self.pool, 'outputs': self.outputs, 'fitness': self.fitness}, self.outputs)
 
-            max_fit = max(self.fitness)
-
-            self.data.update({'generation': gen, 'genes': self.pool, 'outputs': self.outputs, 'fitness': self.fitness})
-            self.data.results["best_output"] = self.outputs[self.fitness == max_fit][0]
-            corr = corr_coeff(self.data)
-            stop = self.stop_condition(corr)
-            looper.set_description(" Generation: " + str(gen + 1) + ". Highest fitness: " + str(max_fit) + ". Correlation of fittest genome: " + str(corr) + ". Completed in: " + str(end - start) + " sec(s).")
-            if gen % 5 == 0:
-                self.save_results()
-            if stop:
-                # print('--- final saving ---')
-                self.save_results()
+            if not self.close_loop(gen):
+                if gen % 100:
+                    looper.set_description(self.data.get_description(gen))  # , end - start))
+                self.next_gen(gen)
+                ind = np.unravel_index(np.argmax(self.data.results['fitness_array'], axis=None),
+                                       self.data.results['fitness_array'].shape)
+                self.data.results['best_output'] = self.data.results['output_current_array'][ind]
+            else:
                 break
-            # Evolve to the next generation
-            self.next_gen(gen)
 
-        self.data.results['performance_history'] = np.max(self.data.results['fitness_array'], axis=1)
-        if not stop:
-            ind = np.unravel_index(np.argmax(self.data.results['fitness_array'], axis=None),
-                                   self.data.results['fitness_array'].shape)
-            self.data.results['best_output'] = self.data.results['output_current_array'][ind]
         return self.data
 
     def evaluate_population(self, inputs_wfm, gene_pool, target_wfm):
@@ -169,17 +156,19 @@ class GA:
 
         return output_popul
 
-    def stop_condition(self, corr):
-        if corr >= self.stop_thr:
-            print(f'Very high correlation achieved, evolution will stop! \
-                  (correlaton threshold set to {self.stop_thr})')
-        return corr >= self.stop_thr
-
     def save_results(self):
         save_directory = create_directory_timestamp(self.save_path, self.save_dir)
         save(mode='configs', path=save_directory, filename='configs.json', data=self.config_dict)
         save(mode='pickle', path=save_directory, filename='result.pickle', data=self.data.results)
 # %% Step to next generation
+
+    def close_loop(self, gen):
+        if self.data.results['correlation'] >= self.stop_thr or (self.config_dict['checkpoints'] is True and gen % 5 == 0):
+            self.save_results()
+            if self.data.results['correlation'] >= self.stop_thr:
+                print(f"  STOPPED: Correlation {self.data.results['correlation']} reached {self.stop_thr}. ")
+                return True
+        return False
 
     def next_gen(self, gen):
         # Sort genePool based on fitness

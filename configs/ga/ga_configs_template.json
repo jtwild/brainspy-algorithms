@@ -3,6 +3,7 @@
   "results_path": "tmp/output/genetic_algorithm/",
   "experiment_name": "TEST",
   "stop_threshold": 0.9,
+  "checkpoints": true, 
   "processor": {
             "platform": "simulation",
             "simulation_type": "neural_network",
