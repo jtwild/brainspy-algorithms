@@ -121,17 +121,14 @@ class GA:
             self.outputs = self.evaluate_population(inputs, self.pool, self.data.results['targets'])
             self.fitness = self.fitness_function(self.outputs[:, self.data.results['mask']], self.data.results['targets'][self.data.results['mask']])
 
-            self.data.update({'generation': gen, 'genes': self.pool, 'outputs': self.outputs, 'fitness': self.fitness}, self.outputs)
+            self.data.update({'generation': gen, 'genes': self.pool, 'outputs': self.outputs, 'fitness': self.fitness})
 
-            if not self.close_loop(gen):
-                if gen % 100:
-                    looper.set_description(self.data.get_description(gen))  # , end - start))
-                self.next_gen(gen)
-                ind = np.unravel_index(np.argmax(self.data.results['fitness_array'], axis=None),
-                                       self.data.results['fitness_array'].shape)
-                self.data.results['best_output'] = self.data.results['output_current_array'][ind]
-            else:
+            if self.close_loop(gen):
                 break
+
+            if gen % 100:
+                looper.set_description(self.data.get_description(gen))  # , end - start))
+            self.next_gen(gen)
 
         return self.data
 
@@ -158,7 +155,7 @@ class GA:
 
     def save_results(self):
         save_directory = create_directory_timestamp(self.save_path, self.save_dir)
-        save(mode='configs', path=save_directory, filename='configs.json', data=self.config_dict)
+        # save(mode='configs', path=save_directory, filename='configs.json', data=self.config_dict)
         save(mode='pickle', path=save_directory, filename='result.pickle', data=self.data.results)
 # %% Step to next generation
 
