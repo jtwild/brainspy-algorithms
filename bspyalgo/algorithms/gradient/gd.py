@@ -65,12 +65,12 @@ class GD:
 
 # TODO: Implement feeding the validation_data and mask as optional kwargs
 
-    def optimize(self, inputs, targets, validation_data=(None, None), mask=False):
+    def optimize(self, inputs, targets, validation_data=(None, None), mask=None):
         """Wraps trainer function in sgd_torch for use in algorithm_manager.
         """
 
         self.reset_processor()
-        data = GDData(inputs, targets, self.hyperparams['nr_epochs'], self.processor, validation_data)
+        data = GDData(inputs, targets, self.hyperparams['nr_epochs'], self.processor, validation_data, mask=mask)
         if validation_data[0] is not None and validation_data[1] is not None:
             data = self.sgd_train_with_validation(data)
         else:
@@ -107,9 +107,9 @@ class GD:
             with torch.no_grad():
                 prediction = self.processor(data.results['inputs'])
                 data.results['performance_history'][epoch] = self.loss_fn(prediction, data.results['targets']).item()
-            if self.dir_path and (epoch + 1) % self.hyperparams['save_interval'] == 0:
+            if self.configs['checkpoints'] is True and (self.dir_path and (epoch + 1) % self.hyperparams['save_interval'] == 0):
                 save('torch', self.dir_path, f'checkpoint_epoch{epoch}.pt', data=self.processor)
-            if epoch % 10 == 0:
+            if epoch % 100 == 0:
                 description = ' Epoch: ' + str(epoch) + ' Training Error:' + str(data.results['performance_history'][epoch])
                 looper.set_description(description)
         data.set_result_as_numpy('best_output', prediction)
