@@ -20,7 +20,7 @@ class GAData:
         self.results['fitness_array'][gen, :] = next_sate['fitness']
         self.results['best_output'] = outputs[next_sate['fitness'] == max(next_sate['fitness'])][0]
         self.results['performance_history'] = np.max(self.results['fitness_array'], axis=1)
-        self.results['correlation'] = corr_coeff(self.results)
+        self.results['correlation'] = corr_coeff(self.results['best_output'][self.results['mask']].T, self.results['targets'][self.results['mask']].T)
 
     def reset(self, hyperparams):
         # Define placeholders
