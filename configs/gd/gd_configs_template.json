@@ -1,0 +1,21 @@
+{
+    "algorithm": "gradient_descent",
+    "results_path": "tmp/output/gradient_descent/",
+    "experiment_name": "TEST",
+    "checkpoints": true, 
+    "hyperparameters": {
+        "nr_epochs": 1000,
+        "batch_size": 128,
+        "learning_rate": 0.007,
+        "save_interval": 100
+    },
+    "processor": {
+              "platform": "simulation",
+              "simulation_type": "neural_network",
+              "network_type": "dnpu",
+              "torch_model_path": "tmp/input/models/nn_test/checkpoint3000_02-07-23h47m.pt",
+              "input_indices": [0, 1],
+              "input_electrode_no": 7,
+              "amplification": 10.0
+    }
+}
