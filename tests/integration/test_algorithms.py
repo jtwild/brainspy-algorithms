@@ -13,7 +13,7 @@ XNOR = np.load('tests/inputs/XNOR_validation.npz')
 
 
 def task_to_solve(algorithm, INPUTS, TARGETS, INPUTS_VAL, TARGETS_VAL,
-                  validation=False, mask=False, plot=False):
+                  validation=False, mask=None, plot=False):
     found = False
     for run in range(10):
         if validation:
@@ -33,6 +33,7 @@ def task_to_solve(algorithm, INPUTS, TARGETS, INPUTS_VAL, TARGETS_VAL,
 
     if type(OUTPUTS) is torch.Tensor:
         OUTPUTS = OUTPUTS.cpu().numpy()
+    if type(TARGETS) is torch.Tensor:
         if validation:
             TARGETS = TARGETS_VAL.cpu().numpy()
         else:
@@ -47,9 +48,10 @@ def task_to_solve(algorithm, INPUTS, TARGETS, INPUTS_VAL, TARGETS_VAL,
 
 def get_accuracy(x, targets):
     if isinstance(x, torch.Tensor):
-        accuracy, _, _ = perceptron(x.cpu().data.numpy(), targets.cpu().data.numpy())
-    else:
-        accuracy, _, _ = perceptron(x, targets)
+        x = x.cpu().data.numpy()
+    if isinstance(targets, torch.Tensor):
+        targets = targets.cpu().data.numpy()
+    accuracy, _, _ = perceptron(x, targets)
     return accuracy
 
 # Tests
@@ -60,7 +62,7 @@ def test_gd_dnpu(validation=True, plot=False):
     TARGETS = torchutils.get_tensor_from_numpy(XNOR['targets'])
     INPUTS_VAL = torchutils.get_tensor_from_numpy(XNOR['inputs_val'].T)
     TARGETS_VAL = torchutils.get_tensor_from_numpy(XNOR['targets_val'])
-    gd_dnpu = get_algorithm('./configs/gd/gd_configs_template.json')
+    gd_dnpu = get_algorithm('./configs/gd/configs_template_dpnu.json')
     task_to_solve(gd_dnpu, INPUTS, TARGETS, INPUTS_VAL, TARGETS_VAL,
                   validation=validation, plot=plot)
 
@@ -70,17 +72,17 @@ def test_gd_nn(validation=True, plot=False):
     TARGETS = torchutils.get_tensor_from_numpy(XNOR['targets'])
     INPUTS_VAL = torchutils.get_tensor_from_numpy(XNOR['inputs_val'].T)
     TARGETS_VAL = torchutils.get_tensor_from_numpy(XNOR['targets_val'])
-    gd_nn = get_algorithm('./configs/gd/nnmodel_configs_template.json')
+    gd_nn = get_algorithm('./configs/gd/configs_template_nn_model.json')
     task_to_solve(gd_nn, INPUTS, TARGETS, INPUTS_VAL, TARGETS_VAL,
                   validation=validation, plot=plot)
 
 
-def test_ga_devicemodel(validation=False, plot=False):
-    INPUTS = XNOR['inputs']
+def test_ga(validation=False, plot=False):
+    INPUTS = XNOR['inputs'].T
     TARGETS = XNOR['targets']
     INPUTS_VAL = XNOR['inputs_val']
     TARGETS_VAL = XNOR['targets_val']
-    ga_devicemodel = get_algorithm('./configs/ga/ga_configs_template.json')
+    ga_devicemodel = get_algorithm('./configs/ga/configs_template.json')
     task_to_solve(ga_devicemodel, INPUTS, TARGETS, INPUTS_VAL, TARGETS_VAL, mask=XNOR['mask'],
                   validation=validation, plot=plot)
 
@@ -96,6 +98,6 @@ def test_ga_devicemodel(validation=False, plot=False):
 
 if __name__ == '__main__':
     # torchutils.force_cpu = True
-    test_gd_dnpu(plot=True)
+    # test_gd_dnpu(plot=True)
     # test_gd_nn(plot=True)
-    # test_ga_devicemodel(plot=True)
+    test_ga(plot=True)

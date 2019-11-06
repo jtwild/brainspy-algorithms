@@ -1,0 +1,25 @@
+{
+    "algorithm": "gradient_descent",
+    "results_path": "tmp/output/models/nn_test",
+    "experiment_name": "TEST",
+    "checkpoints": true,     
+    "hyperparameters": {
+        "nr_epochs": 1000,
+        "batch_size": 128,
+        "learning_rate": 0.007,
+        "save_interval": 100
+    },
+    "processor": {
+              "platform": "simulation",
+              "simulation_type": "neural_network",
+              "network_type": "nn_model",
+              "torch_model_dict": {
+                                "hidden_sizes": [2],
+                                "D_in": 2,
+                                "D_out": 1,
+                                "activation": "relu"
+              },
+              "input_electrode_no": 7,
+              "amplification": 10.0
+    }
+}
