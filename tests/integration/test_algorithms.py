@@ -13,7 +13,7 @@ XNOR = np.load('tests/inputs/XNOR_validation.npz')
 
 
 def task_to_solve(algorithm, INPUTS, TARGETS, INPUTS_VAL, TARGETS_VAL,
-                  validation=False, mask=False, plot=False):
+                  validation=False, mask=None, plot=False):
     found = False
     for run in range(10):
         if validation:
