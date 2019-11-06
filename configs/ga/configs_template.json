@@ -7,8 +7,8 @@
   "processor": {
             "platform": "simulation",
             "simulation_type": "neural_network",
-            "network_type": "device_model",
-            "torch_model_path": "tmp/input/models/nn_test/checkpoint3000_02-07-23h47m.pt",
+            "network_type": "nn_model",
+            "torch_model_dict": "tmp/input/models/nn_test/checkpoint3000_02-07-23h47m.pt",
             "input_indices": [0, 1],
             "input_electrode_no": 7,
             "amplification": 10.0
