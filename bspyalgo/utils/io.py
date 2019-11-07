@@ -20,11 +20,17 @@ def save(mode, path, filename, **kwargs):
         if mode == 'configs':
             save_configs(kwargs['data'], file_path)
         elif mode == 'pickle':
-            pickle.dump(kwargs['data'], open(file_path, "wb"))
+            save_pickle(kwargs['data'], file_path)
         elif mode == 'torch':
             save_torch(kwargs['data'], file_path)
         else:
             raise NotImplementedError(f"Mode {mode} is not recognised. Please choose a value between 'numpy', 'torch', 'pickle' and 'configs'.")
+
+
+def save_pickle(pickle_data, file_path):
+    with open(file_path, "wb") as f:
+        pickle.dump(pickle_data, f)
+        f.close()
 
 
 def save_torch(torch_model, file_path):
@@ -46,10 +52,12 @@ def load_configs(file):
 
 
 def save_configs(configs, file):
-    for key in configs:
-        if type(configs[key]) is np.ndarray:
-            configs[key] = configs[key].tolist()
-    json.dump(configs, open(file, 'w'), indent=4)
+    with open(file, 'w') as f:
+        for key in configs:
+            if type(configs[key]) is np.ndarray:
+                configs[key] = configs[key].tolist()
+        json.dump(configs, f, indent=4)
+        f.close()
 
 
 def create_directory(path):

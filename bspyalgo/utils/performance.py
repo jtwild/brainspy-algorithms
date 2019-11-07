@@ -61,9 +61,7 @@ def f(x):
     return float(x < 0)
 
 
-def corr_coeff(data):
-    x = data.results['best_output'][data.results['mask']].T
-    y = data.results['targets'][data.results['mask']].T
+def corr_coeff(x, y):
     return np.corrcoef(np.concatenate((x, y), axis=0))[0, 1]
 
 # TODO: use data object to get the accuracy (see corr_coeff above)

@@ -4,16 +4,18 @@ Created on Thu May 16 18:16:36 2019
 @author: HCRuiz and A. Uitzetter
 """
 
-import time
 import random
 import numpy as np
 
+from tqdm import trange
+
 from bspyalgo.algorithms.genetic.core.fitness import choose_fitness_function
 from bspyalgo.utils.io import create_directory_timestamp, save
-from bspyalgo.utils.performance import corr_coeff
 from bspyalgo.algorithms.genetic.core.trafo import get_trafo
-from bspyproc.processors.processor_mgr import get_processor
 from bspyalgo.algorithms.genetic.core.data import GAData
+from bspyproc.processors.processor_mgr import get_processor
+
+
 # TODO: Implement Plotter
 
 
@@ -66,6 +68,10 @@ class GA:
         self.fitness_function = choose_fitness_function(config_dict['hyperparameters']['fitness_function_type'])
         self.processor = self.load_processor(config_dict['processor'])
         self.load_trafo(config_dict['hyperparameters']['transformation'])
+        if config_dict['processor']['platform'] == 'hardware' and config_dict['processor']['setup_type'] == 'cdaq_to_nidaq':
+            self.get_control_voltages = self.get_safety_formatted_control_voltages
+        else:
+            self.get_control_voltages = self.get_regular_control_voltages
 
     def load_trafo(self, config_dict):
         self.gene_trafo_index = config_dict['gene_trafo_index']
@@ -96,89 +102,90 @@ class GA:
         self.config_dict['hyperparameters']['genomes'] = self.genomes
 # %% Method implementing evolution
 # TODO: Implement feeding the validation_data and mask as optional kwargs
-    def optimize(self, inputs, targets, validation_data=(None, None), mask=False):
 
+    def optimize(self, inputs, targets, validation_data=(None, None), mask=None):
+        '''
+            inputs = The inputs of the algorithm. They need to be in numpy. The GA also requires the input to be a waveform.
+            targets = The targets to which the algorithm will try to fit the inputs. They need to be in numpy.
+            validation_data = In some cases, it is required to provide the validation data in the form of (training_data, validation_data)
+            mask = In cases where the input is a waveform, the mask helps filtering the slopes of the waveform
+        '''
         np.random.seed(seed=self.seed)
         if (validation_data[0] is not None) and (validation_data[1] is not None):
             print('======= WARNING: Validation data is not processed in GA =======')
-        if len(mask) <= 1:
-            mask = np.ones(targets.shape[0], dtype=bool)
+
         self.data = GAData(inputs, targets, mask, self.config_dict['hyperparameters'])
-        targets = targets[mask]
         self.pool = np.zeros((self.genomes, self.genes))
         self.opposite_pool = np.zeros((self.genomes, self.genes))
         for i in range(0, self.genes):
             self.pool[:, i] = np.random.uniform(self.generange[i][0], self.generange[i][1], size=(self.genomes,))
 
         # Evolution loop
-        for gen in range(self.generations):
-            start = time.time()
+        looper = trange(self.generations, desc='Initialising', leave=False)
+        for gen in looper:
 
-            self.outputs = self.evaluate_population(inputs, self.pool, targets)
-            self.fitness = self.fitness_function(self.outputs[:, mask], targets)
-
-            # Status print
-            max_fit = max(self.fitness)
-            print(f"Highest fitness: {max_fit}")
+            self.outputs = self.evaluate_population(inputs, self.pool, self.data.results['targets'])
+            self.fitness = self.fitness_function(self.outputs[:, self.data.results['mask']], self.data.results['targets'][self.data.results['mask']])
 
             self.data.update({'generation': gen, 'genes': self.pool, 'outputs': self.outputs, 'fitness': self.fitness})
-            if gen % 5 == 0:
-                # Save generation
-                print('--- checkpoint ---')
-                self.save_results()
 
-            end = time.time()
-            print("Generation nr. " + str(gen + 1) + " completed; took " + str(end - start) + " sec.")
-            stop = self.stop_condition(max_fit)
-            if stop:
-                print('--- final saving ---')
-                self.save_results()
+            if self.close_loop(gen):
                 break
-            # Evolve to the next generation
+
+            if gen % 100:
+                looper.set_description(self.data.get_description(gen))  # , end - start))
             self.next_gen(gen)
 
-        self.data.results['performance_history'] = np.max(self.data.results['fitness_array'], axis=1)
-        if not stop:
-            ind = np.unravel_index(np.argmax(self.data.results['fitness_array'], axis=None),
-                                   self.data.results['fitness_array'].shape)
-            self.data.results['best_output'] = self.data.results['output_current_array'][ind]
         return self.data
 
     def evaluate_population(self, inputs_wfm, gene_pool, target_wfm):
         '''Optimisation function of the platform '''
         genomes = len(gene_pool)
-        output_popul = np.zeros((genomes,) + target_wfm.shape)
+        output_popul = np.zeros((genomes,) + (len(inputs_wfm), 1))
 
         for j in range(genomes):
             # Feed input to NN
             # target_wfm.shape, genePool.shape --> (time-steps,) , (nr-genomes,nr-genes)
-            control_voltage_genes = np.ones_like(target_wfm) * gene_pool[j, :, np.newaxis].T  # expand genome j into time-steps -> (time-steps,nr-genes)
-
+            # control_voltage_genes = np.ones_like(target_wfm) * gene_pool[j, :, np.newaxis].T  # expand genome j into time-steps -> (time-steps,nr-genes)
+            control_voltage_genes = self.get_control_voltages(gene_pool[j], len(inputs_wfm))
             # g.shape,x.shape --> (time-steps,nr-CVs) , (input-dim, time-steps)
             x_dummy = np.empty((control_voltage_genes.shape[0], self.input_electrode_no))  # dims of input (time-steps)xD_in
             # Set the input scaling
             # inputs_wfm.shape -> (nr-inputs,nr-time-steps)
-            x_dummy[:, self.input_indices] = self._input_trafo(inputs_wfm, gene_pool[j, self.gene_trafo_index]).T
+            x_dummy[:, self.input_indices] = self._input_trafo(inputs_wfm, gene_pool[j, self.gene_trafo_index])  # .T
             x_dummy[:, self.control_voltage_genes_indices] = control_voltage_genes
 
             output_popul[j] = self.processor.get_output(x_dummy)
 
         return output_popul
 
-    def stop_condition(self, max_fit):
-        self.data.results["best_output"] = self.outputs[self.fitness == max_fit][0]
-        corr = corr_coeff(self.data)
-        print(f"Correlation of fittest genome: {corr}")
-        if corr >= self.stop_thr:
-            print(f'Very high correlation achieved, evolution will stop! \
-                  (correlaton threshold set to {self.stop_thr})')
-        return corr >= self.stop_thr
+    def get_regular_control_voltages(self, gene_pool, input_length):
+        return np.broadcast_to(gene_pool, (input_length, len(gene_pool)))
+
+    def get_safety_formatted_control_voltages(self, gene_pool, input_length):
+        control_voltages = np.broadcast_to(gene_pool, (input_length, len(gene_pool))).copy()
+        length = 100
+        for i in range(control_voltages.shape[1]):
+            up = np.linspace(0, control_voltages[0, i], length)
+            down = np.linspace(control_voltages[0, i], 0, length)
+            gene = control_voltages[0:-2 * length, i]
+
+            control_voltages[:, i] = (np.append(np.append(up, gene), down))
+        return control_voltages
 
     def save_results(self):
         save_directory = create_directory_timestamp(self.save_path, self.save_dir)
-        save(mode='configs', path=save_directory, filename='configs.json', data=self.config_dict)
+        # save(mode='configs', path=save_directory, filename='configs.json', data=self.config_dict)
         save(mode='pickle', path=save_directory, filename='result.pickle', data=self.data.results)
 # %% Step to next generation
+
+    def close_loop(self, gen):
+        if self.data.results['correlation'] >= self.stop_thr or (self.config_dict['checkpoints'] is True and gen % 5 == 0):
+            self.save_results()
+            if self.data.results['correlation'] >= self.stop_thr:
+                print(f"  STOPPED: Correlation {self.data.results['correlation']} reached {self.stop_thr}. ")
+                return True
+        return False
 
     def next_gen(self, gen):
         # Sort genePool based on fitness
