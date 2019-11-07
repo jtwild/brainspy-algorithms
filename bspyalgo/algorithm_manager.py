@@ -18,7 +18,6 @@ from bspyalgo.utils.io import load_configs
 # TODO: Add simulation platform
 # TODO: Target wave form as argument can be left out if output dimension is known internally
 
-
 def get_algorithm(configs):
     if(isinstance(configs, str)):       # Enable to load configs as a path to configurations or as a dictionary
         configs = load_configs(configs)
