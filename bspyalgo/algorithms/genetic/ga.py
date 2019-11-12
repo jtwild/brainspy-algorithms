@@ -325,7 +325,6 @@ class GA:
                             self.newpool[j][k] = self.generange[k][0]
 
     # Methods required for evaluating the opposite pool
-
     def opposite(self):
         '''
         Define opposite pool
@@ -342,3 +341,13 @@ class GA:
         for k in range(len(indices)):
             if indices[k][0]:
                 self.pool[k, :] = self.opposite_pool[k, :]
+
+    def close(self):
+        """
+        Experiments in hardware require that the connection with the drivers is closed.
+        This method helps closing this connection when necessary.
+        """
+        try:
+            self.processor.close_tasks()
+        except AttributeError:
+            print('There is no closing function for the current processor configuration. Skipping.')
