@@ -14,6 +14,7 @@ from bspyalgo.utils.io import create_directory_timestamp, save
 from bspyalgo.algorithms.genetic.core.trafo import get_trafo
 from bspyalgo.algorithms.genetic.core.data import GAData
 from bspyproc.processors.processor_mgr import get_processor
+from bspyproc.utils.waveform import generate_slopped_plato
 
 
 # TODO: Implement Plotter
@@ -72,6 +73,8 @@ class GA:
             self.get_control_voltages = self.get_safety_formatted_control_voltages
         else:
             self.get_control_voltages = self.get_regular_control_voltages
+
+        self.base_slopped_plato = generate_slopped_plato(config_dict['processor']['waveform']['slope_lengths'], config_dict['processor']['shape'])
 
     def load_trafo(self, config_dict):
         self.gene_trafo_index = config_dict['gene_trafo_index']
@@ -142,7 +145,6 @@ class GA:
         '''Optimisation function of the platform '''
         genomes = len(gene_pool)
         output_popul = np.zeros((genomes,) + (len(inputs_wfm), 1))
-
         for j in range(genomes):
             # Feed input to NN
             # target_wfm.shape, genePool.shape --> (time-steps,) , (nr-genomes,nr-genes)
@@ -154,23 +156,16 @@ class GA:
             # inputs_wfm.shape -> (nr-inputs,nr-time-steps)
             x_dummy[:, self.input_indices] = self._input_trafo(inputs_wfm, gene_pool[j, self.gene_trafo_index])  # .T
             x_dummy[:, self.control_voltage_genes_indices] = control_voltage_genes
-
             output_popul[j] = self.processor.get_output(x_dummy)
-
         return output_popul
 
     def get_regular_control_voltages(self, gene_pool, input_length):
         return np.broadcast_to(gene_pool, (input_length, len(gene_pool)))
 
     def get_safety_formatted_control_voltages(self, gene_pool, input_length):
-        control_voltages = np.broadcast_to(gene_pool, (input_length, len(gene_pool))).copy()
-        length = 100
-        for i in range(control_voltages.shape[1]):
-            up = np.linspace(0, control_voltages[0, i], length)
-            down = np.linspace(control_voltages[0, i], 0, length)
-            gene = control_voltages[0:-2 * length, i]
-
-            control_voltages[:, i] = (np.append(np.append(up, gene), down))
+        control_voltages = np.empty([input_length, len(gene_pool)])
+        for i in range(len(gene_pool)):
+            control_voltages[:, i] = self.base_slopped_plato * gene_pool[i]
         return control_voltages
 
     def save_results(self):
