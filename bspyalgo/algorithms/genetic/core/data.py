@@ -18,6 +18,7 @@ class GAData:
         self.results['control_voltage_array'][gen, :, :] = current_state['genes']
         self.results['fitness_array'][gen, :] = current_state['fitness']
         self.results['best_output'] = current_state['outputs'][current_state['fitness'] == max(current_state['fitness'])][0]
+        self.results['best_performance'] = np.max(current_state['fitness'])
         self.results['performance_history'] = np.max(self.results['fitness_array'], axis=1)
         self.results['output_current_array'][gen, :, :] = current_state['outputs']
         self.results['correlation'] = corr_coeff(self.results['best_output'][self.results['mask']].T, self.results['targets'][self.results['mask']].T)
@@ -38,7 +39,7 @@ class GAData:
         # self.print_results()
 
     def get_description(self, gen):
-        return "  Gen: " + str(gen + 1) + ". Max fitness: " + str(max(self.results['best_output'])) + ". Corr: " + str(self.results['correlation'])
+        return "  Gen: " + str(gen + 1) + ". Max fitness: " + str(self.results['best_performance']) + ". Corr: " + str(self.results['correlation'])
 
     def print_results(self):  # print(best_output.shape,self.target_wfm.shape)
         print(f'\n========================= BEST SOLUTION =======================')

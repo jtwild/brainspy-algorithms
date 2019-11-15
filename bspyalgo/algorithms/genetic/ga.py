@@ -67,6 +67,7 @@ class GA:
 
         self.stop_thr = config_dict['stop_threshold']
         self.fitness_function = choose_fitness_function(config_dict['hyperparameters']['fitness_function_type'])
+        self.clipvalue = 3.55 * config_dict["processor"]["amplification"]
         self.processor = self.load_processor(config_dict['processor'])
         self.load_trafo(config_dict['hyperparameters']['transformation'])
         if config_dict['processor']['platform'] == 'hardware' and config_dict['processor']['setup_type'] == 'cdaq_to_nidaq':
@@ -128,7 +129,9 @@ class GA:
         for gen in looper:
 
             self.outputs = self.evaluate_population(inputs, self.pool, self.data.results['targets'])
-            self.fitness = self.fitness_function(self.outputs[:, self.data.results['mask']], self.data.results['targets'][self.data.results['mask']])
+            self.fitness = self.fitness_function(self.outputs[:, self.data.results['mask']],
+                                                 self.data.results['targets'][self.data.results['mask']],
+                                                 clipvalue=self.clipvalue)
 
             self.data.update({'generation': gen, 'genes': self.pool, 'outputs': self.outputs, 'fitness': self.fitness})
 
