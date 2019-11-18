@@ -11,7 +11,9 @@ import numpy as np
 
 
 def save(mode, path, filename, **kwargs):
+    create_directory(path)
     file_path = os.path.join(path, filename)
+    
     if mode == 'numpy':
         np.savez(file_path, **kwargs)
     elif not kwargs['data']:
