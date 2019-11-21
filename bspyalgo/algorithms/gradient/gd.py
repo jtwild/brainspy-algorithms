@@ -68,7 +68,8 @@ class GD:
     def optimize(self, inputs, targets, validation_data=(None, None), mask=None):
         """Wraps trainer function in sgd_torch for use in algorithm_manager.
         """
-
+        assert isinstance(inputs, torch.Tensor), f"Inputs must be torch.Tensor, they are {type(inputs)}"
+        assert isinstance(targets, torch.Tensor), f"Targets must be torch.Tensor, they are {type(targets)}"
         self.reset_processor()
         data = GDData(inputs, targets, self.hyperparams['nr_epochs'], self.processor, validation_data, mask=mask)
         if validation_data[0] is not None and validation_data[1] is not None:
