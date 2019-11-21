@@ -6,12 +6,15 @@ import time
 import json
 import codecs
 import pickle
+import shutil
 
 import numpy as np
 
 
-def save(mode, path, filename, **kwargs):
+def save(mode, path, filename, overwrite=False, **kwargs):
+    create_directory(path, overwrite=overwrite)
     file_path = os.path.join(path, filename)
+
     if mode == 'numpy':
         np.savez(file_path, **kwargs)
     elif not kwargs['data']:
@@ -60,12 +63,15 @@ def save_configs(configs, file):
         f.close()
 
 
-def create_directory(path):
+def create_directory(path, overwrite=False):
     '''
     This function checks if there exists a directory filepath+datetime_name.
     If not it will create it and return this path.
     '''
     if not os.path.exists(path):
+        os.makedirs(path)
+    elif overwrite:
+        shutil.rmtree(path)
         os.makedirs(path)
     return path
 

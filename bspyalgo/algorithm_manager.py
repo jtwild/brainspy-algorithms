@@ -11,12 +11,13 @@ Created on Wed Aug 21 11:34:14 2019
 """
 # import logging
 from bspyalgo.algorithms.genetic.ga import GA
-from bspyalgo.algorithms.gradient.gd import get_gd
+from bspyalgo.algorithms.gradient.gd import GD
 from bspyalgo.utils.io import load_configs
 
 # TODO: Add chip platform
 # TODO: Add simulation platform
 # TODO: Target wave form as argument can be left out if output dimension is known internally
+
 
 def get_algorithm(configs):
     if(isinstance(configs, str)):       # Enable to load configs as a path to configurations or as a dictionary
@@ -28,6 +29,16 @@ def get_algorithm(configs):
         return get_gd(configs)
     else:
         raise NotImplementedError(f"Algorithm {configs['algorithm']} is not recognised. Please try again with 'genetic' or 'gradient_descent'")
+
+
+def get_gd(configs):
+    if configs['processor']['platform'] == 'hardware':
+        raise NotImplementedError('Hardware platform not implemented')
+        # TODO: Implement the lock in algorithm class
+    elif configs['processor']['platform'] == 'simulation':
+        return GD(configs)
+    else:
+        raise NotImplementedError('Platform not implemented')
 
 
 # %% MAIN

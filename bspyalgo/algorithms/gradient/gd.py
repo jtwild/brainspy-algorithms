@@ -6,16 +6,6 @@ from bspyalgo.utils.io import save, create_directory_timestamp
 from bspyalgo.algorithms.gradient.core.data import GDData
 
 
-def get_gd(configs):
-    if configs['processor']['platform'] == 'hardware':
-        raise NotImplementedError('Hardware platform not implemented')
-        # TODO: Implement the lock in algorithm class
-    elif configs['processor']['platform'] == 'simulation':
-        return GD(configs)
-    else:
-        raise NotImplementedError('Platform not implemented')
-
-
 class GD:
     """
     Trains a neural network given data.

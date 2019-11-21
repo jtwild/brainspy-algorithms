@@ -69,31 +69,20 @@ def corr_fit(outputpool, target, clipvalue=np.inf):
 
 
 def corrsig_fit(outputpool, target, clipvalue=np.inf):
-
     genomes = len(outputpool)
     fitpool = np.zeros(genomes)
     for j in range(genomes):
         output = outputpool[j]
         if np.any(np.abs(output) > clipvalue):
             print(f'Clipped at {clipvalue} nA')
-            fit = -100
+            fit = -1
         else:
-            buff0 = target == 0
-            buff1 = target == 1
-            max_0 = np.max(output[buff0])
-            min_1 = np.min(output[buff1])
-            sep = min_1 - max_0
             X = np.stack((output, target), axis=0)[:, :, 0]
             corr = np.corrcoef(X)[0, 1]
-            if sep >= 0:
-                fit = sig(sep) * corr
-            else:
-                fit = sig(sep) * corr * 0.01
+            buff0 = target == 0
+            buff1 = target == 1
+            sep = np.mean(output[buff1]) - np.mean(output[buff0])
+            sig = 1 / (1 + np.exp(-2 * (sep - 2)))
+            fit = corr * sig
         fitpool[j] = fit
     return fitpool
-
-# Sigmoid function.
-
-
-def sig(sep):
-    return 1 / (1 + np.exp(-5 * (sep / 2.5 - 0.5))) + 0.1
