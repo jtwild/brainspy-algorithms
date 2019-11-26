@@ -49,7 +49,7 @@ def perceptron(wvfrm, target, tolerance=0.01, max_iter=200):
 #    print('Fraction of iterations used: ', j/max_iter)
 #    pdb.set_trace()
     corrcoef = np.corrcoef(y_test.T, x_test[:, 1].T)[0, 1]
-    if accuracy > 0.9 and weights[0] < 0 and corrcoef < 0:
+    if accuracy > 0.9 and corrcoef < 0:
         print('Weight is negative', weights[0], ' and correlation also: ', corrcoef)
         accuracy = 0.
         print('Accuracy is set to zero!')
