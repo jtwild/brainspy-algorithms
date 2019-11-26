@@ -35,7 +35,7 @@ def accuracy_fit(outputpool, target, clipvalue=np.inf):
 
         if np.any(np.abs(output) > clipvalue):
             acc = 0
-            print(f'Clipped at {clipvalue} nA')
+            # print(f'Clipped at {clipvalue} nA')
         else:
             x = output[:, np.newaxis]
             y = target[:, np.newaxis]
@@ -53,7 +53,7 @@ def corr_fit(outputpool, target, clipvalue=np.inf):
     for j in range(genomes):
         output = outputpool[j]
         if np.any(np.abs(output) > clipvalue):
-            print(f'Clipped at {clipvalue} nA')
+            # print(f'Clipped at {clipvalue} nA')
             corr = -1
         else:
             x = output[:, np.newaxis]
@@ -74,7 +74,7 @@ def corrsig_fit(outputpool, target, clipvalue=np.inf):
     for j in range(genomes):
         output = outputpool[j]
         if np.any(np.abs(output) > clipvalue):
-            print(f'Clipped at {clipvalue} nA')
+            # print(f'Clipped at {clipvalue} nA')
             fit = -1
         else:
             X = np.stack((output, target), axis=0)[:, :, 0]
