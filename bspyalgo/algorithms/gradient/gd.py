@@ -4,6 +4,7 @@ from tqdm import trange
 from bspyproc.processors.processor_mgr import get_processor
 from bspyalgo.utils.io import save, create_directory_timestamp
 from bspyalgo.algorithms.gradient.core.data import GDData
+from bspyalgo.algorithms.gradient.core.losses import choose_loss_function
 
 
 class GD:
@@ -17,7 +18,11 @@ class GD:
     def __init__(self, configs, loss_fn=torch.nn.MSELoss()):
         self.configs = configs
         self.hyperparams = configs["hyperparameters"]
-        self.loss_fn = loss_fn
+
+        if 'loss_function' in self.hyperparams.keys():
+            self.loss_fn = choose_loss_function(self.hyperparams['loss_function'])
+        else:
+            self.loss_fn = loss_fn
         self.reset_processor()
 
     def reset_processor(self):
@@ -82,8 +87,13 @@ class GD:
             if self.dir_path and (epoch + 1) % self.hyperparams['save_interval'] == 0:
                 save('torch', self.dir_path, f'checkpoint_epoch{epoch}.pt', data=self.processor)
             if epoch % 10 == 0:
-                description = ' Epoch: ' + str(epoch) + ' Training Error:' + str(data.results['performance_history'][epoch, 0]) + ' Val. Error:' + str(data.results['performance_history'][epoch, 1])
+                training_error = data.results['performance_history'][epoch, 0]
+                validation_error = data.results['performance_history'][epoch, 1]
+                description = ' Epoch: ' + str(epoch) + ' Training Error:' + str(training_error) + ' Val. Error:' + str(validation_error)
                 looper.set_description(description)
+                if training_error <= self.configs['stop_threshold'] and validation_error <= self.configs['stop_threshold']:
+                    print(f"Reached threshold error {self.configs['stop_threshold'] } for training and validation. Stopping")
+                    break
         data.set_result_as_numpy('best_output', prediction_validation)
         data.set_result_as_numpy('best_output_training', prediction_training)
         return data
@@ -100,8 +110,12 @@ class GD:
             if self.configs['checkpoints'] is True and (self.dir_path and (epoch + 1) % self.hyperparams['save_interval'] == 0):
                 save('torch', self.dir_path, f'checkpoint_epoch{epoch}.pt', data=self.processor)
             if epoch % 100 == 0:
-                description = ' Epoch: ' + str(epoch) + ' Training Error:' + str(data.results['performance_history'][epoch])
+                error = data.results['performance_history'][epoch]
+                description = ' Epoch: ' + str(epoch) + ' Training Error:' + str(error)
                 looper.set_description(description)
+                if error <= self.configs['stop_threshold']:
+                    print(f"Reached threshold error {self.configs['stop_threshold']}. Stopping")
+                    break
         data.set_result_as_numpy('best_output', prediction)
         return data
 
