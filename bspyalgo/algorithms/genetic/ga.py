@@ -67,15 +67,15 @@ class GA:
 
         self.stop_thr = config_dict['stop_threshold']
         self.fitness_function = choose_fitness_function(config_dict['hyperparameters']['fitness_function_type'])
-        self.clipvalue = 3.55 * config_dict["processor"]["amplification"]
+
         self.processor = self.load_processor(config_dict['processor'])
+        self.clipvalue = 3.55 * self.processor.get_amplification_value()  # config_dict["processor"]["amplification"]
         self.load_trafo(config_dict['hyperparameters']['transformation'])
-        if config_dict['processor']['platform'] == 'hardware' and config_dict['processor']['setup_type'] == 'cdaq_to_nidaq':
+        if config_dict['processor']['platform'] == 'hardware':
+            self.base_slopped_plato = generate_slopped_plato(config_dict['processor']['waveform']['slope_lengths'], config_dict['processor']['shape'])
             self.get_control_voltages = self.get_safety_formatted_control_voltages
         else:
             self.get_control_voltages = self.get_regular_control_voltages
-
-        self.base_slopped_plato = generate_slopped_plato(config_dict['processor']['waveform']['slope_lengths'], config_dict['processor']['shape'])
 
     def load_trafo(self, config_dict):
         self.gene_trafo_index = config_dict['gene_trafo_index']
@@ -114,6 +114,7 @@ class GA:
             validation_data = In some cases, it is required to provide the validation data in the form of (training_data, validation_data)
             mask = In cases where the input is a waveform, the mask helps filtering the slopes of the waveform
         '''
+
         np.random.seed(seed=self.seed)
         if (validation_data[0] is not None) and (validation_data[1] is not None):
             print('======= WARNING: Validation data is not processed in GA =======')
