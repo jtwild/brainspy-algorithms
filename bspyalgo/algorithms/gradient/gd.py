@@ -1,7 +1,7 @@
 # TODO: ''' '''
 import torch
 from tqdm import trange
-from bspyproc.processors.processor_mgr import get_processor
+from bspyproc.bspyproc import get_processor
 from bspyalgo.utils.io import save, create_directory_timestamp
 from bspyalgo.algorithms.gradient.core.data import GDData
 from bspyalgo.algorithms.gradient.core.losses import choose_loss_function
@@ -107,7 +107,7 @@ class GD:
             self.train_step(x_train, y_train)
             with torch.no_grad():
                 prediction = self.processor(data.results['inputs'])
-                data.results['performance_history'][epoch] = self.loss_fn(prediction, data.results['targets']).item()
+                data.results['performance_history'][epoch] = self.loss_fn(prediction, y_train).item()  # data.results['targets']).item()
             if self.configs['checkpoints'] is True and (self.dir_path and (epoch + 1) % self.hyperparams['save_interval'] == 0):
                 save('torch', self.dir_path, f'checkpoint_epoch{epoch}.pt', data=self.processor)
             if epoch % 100 == 0:
@@ -125,11 +125,10 @@ class GD:
         permutation = torch.randperm(x_train.size()[0])  # Permute indices
 
         for mb in range(0, len(permutation), self.hyperparams['batch_size']):
-            self.minibatch_step(x_train, y_train, permutation, mb)
+            self.minibatch_step(x_train, y_train, permutation[mb:mb + self.hyperparams['batch_size']])
 
-    def minibatch_step(self, x_train, y_train, permutation, mb):
+    def minibatch_step(self, x_train, y_train, indices):
         # Get y_pred
-        indices = permutation[mb:mb + self.hyperparams['batch_size']]
         x_mb = x_train[indices]
         y_pred = self.processor(x_mb)
 
@@ -157,5 +156,6 @@ class GD:
         return self.loss_fn(prediction, target).item(), prediction
 
     def save_results(self, filename):
-        save('configs', self.dir_path, f'configs.json', data=self.hyperparams)
-        save('torch', self.dir_path, filename, data=self.processor)
+        if self.dir_path is not None:
+            save('configs', self.dir_path, f'configs.json', data=self.hyperparams)
+            save('torch', self.dir_path, filename, data=self.processor)
