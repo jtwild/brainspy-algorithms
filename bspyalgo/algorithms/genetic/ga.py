@@ -13,7 +13,7 @@ from bspyalgo.algorithms.genetic.core.fitness import choose_fitness_function
 from bspyalgo.utils.io import create_directory_timestamp, save
 from bspyalgo.algorithms.genetic.core.trafo import get_trafo
 from bspyalgo.algorithms.genetic.core.data import GAData
-from bspyproc.processors.processor_mgr import get_processor
+from bspyproc.bspyproc import get_processor
 from bspyproc.utils.waveform import generate_slopped_plato
 
 
@@ -153,7 +153,7 @@ class GA:
             # Feed input to NN
             # target_wfm.shape, genePool.shape --> (time-steps,) , (nr-genomes,nr-genes)
             # control_voltage_genes = np.ones_like(target_wfm) * gene_pool[j, :, np.newaxis].T  # expand genome j into time-steps -> (time-steps,nr-genes)
-            control_voltage_genes = self.get_control_voltages(gene_pool[j], len(inputs_wfm))
+            control_voltage_genes = self.get_control_voltages(gene_pool[j], len(inputs_wfm))  # , gene_pool[j, self.gene_trafo_index]
             # g.shape,x.shape --> (time-steps,nr-CVs) , (input-dim, time-steps)
             x_dummy = np.empty((control_voltage_genes.shape[0], self.input_electrode_no))  # dims of input (time-steps)xD_in
             # Set the input scaling
