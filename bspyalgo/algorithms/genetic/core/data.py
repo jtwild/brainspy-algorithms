@@ -17,9 +17,9 @@ class GAData:
         gen = current_state['generation']
         self.results['control_voltage_array'][gen, :, :] = current_state['genes']
         self.results['fitness_array'][gen, :] = current_state['fitness']
-        self.results['best_output'] = current_state['outputs'][current_state['fitness'] == max(current_state['fitness'])][0]
-        self.results['best_performance'] = np.max(current_state['fitness'])
-        self.results['performance_history'] = np.max(self.results['fitness_array'], axis=1)
+        self.results['best_output'] = current_state['outputs'][current_state['fitness'] == np.nanmax(current_state['fitness'])][0]
+        self.results['best_performance'] = np.nanmax(current_state['fitness'])
+        self.results['performance_history'] = np.nanmax(self.results['fitness_array'], axis=1)
         self.results['output_current_array'][gen, :, :] = current_state['outputs']
         self.results['correlation'] = corr_coeff(self.results['best_output'][self.results['mask']].T, self.results['targets'][self.results['mask']].T)
 
