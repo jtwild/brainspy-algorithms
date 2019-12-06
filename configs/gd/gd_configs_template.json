@@ -11,6 +11,7 @@
         "loss_function": "corrsig"
     },
     "processor": {
+              "architecture": "single_device",
               "platform": "simulation",
               "simulation_type": "neural_network",
               "network_type": "dnpu",
