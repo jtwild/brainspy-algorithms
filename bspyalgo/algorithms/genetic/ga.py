@@ -50,60 +50,67 @@ class GA:
 
     '''
 
-    def __init__(self, config_dict):
-        self.load_configs(config_dict)
+    def __init__(self, configs):
+        self.load_configs(configs)
         # Internal parameters and variables
         self._next_state = None
 
-    def get_torch_model_path(self):
-        return self.config_dict['ga_evaluation_configs']['torch_model_path']
+    def load_configs(self, configs):
+        self.configs = configs
+        self.load_processor(configs['processor'])
+        self.load_hyperparameters(configs['hyperparameters'])
+        self.load_checkpoint_configs(configs['checkpoints'])
 
-    def load_configs(self, config_dict):
-        self.config_dict = config_dict
-        self.save_path = config_dict['results_path']
-        self.save_dir = config_dict['experiment_name']
+    def load_processor(self, configs):
+        self.input_electrode_no = configs['input_electrode_no']
+        self.input_indices = configs['input_indices']
+        self.nr_control_genes = self.input_electrode_no - len(self.input_indices)
+        self.control_voltage_genes_indices = np.delete(np.arange(self.input_electrode_no), self.input_indices)
+        self.processor = get_processor(configs)
+        self.load_control_voltage_configs(configs)
+        self.clipvalue = configs['waveform']['clipping_value'] * self.processor.get_amplification_value()  # 3.55
 
-        self.load_hyperparameters(config_dict)
-
-        self.stop_thr = config_dict['stop_threshold']
-        self.fitness_function = choose_fitness_function(config_dict['hyperparameters']['fitness_function_type'])
-
-        self.processor = self.load_processor(config_dict['processor'])
-        self.clipvalue = 3.55 * self.processor.get_amplification_value()  # config_dict["processor"]["amplification"]
-        self.load_trafo(config_dict['hyperparameters']['transformation'])
-        if config_dict['processor']['platform'] == 'hardware':
-            self.base_slopped_plato = generate_slopped_plato(config_dict['processor']['waveform']['slope_lengths'], config_dict['processor']['shape'])
+    def load_control_voltage_configs(self, configs):
+        if configs['platform'] == 'hardware':
+            self.base_slopped_plato = generate_slopped_plato(configs['waveform']['slope_lengths'], configs['shape'])
             self.get_control_voltages = self.get_safety_formatted_control_voltages
         else:
             self.get_control_voltages = self.get_regular_control_voltages
 
-    def load_trafo(self, config_dict):
-        self.gene_trafo_index = config_dict['gene_trafo_index']
-        if self.gene_trafo_index is not None:
-            self._input_trafo = get_trafo(config_dict['trafo_function'])
-        else:
-            self._input_trafo = lambda x, y: x  # define trafo as identity
-
-    def load_processor(self, config_dict):
-        self.input_electrode_no = config_dict['input_electrode_no']
-        self.input_indices = config_dict['input_indices']
-        self.nr_control_genes = self.input_electrode_no - len(self.input_indices)
-        self.control_voltage_genes_indices = np.delete(np.arange(self.input_electrode_no), self.input_indices)
-        return get_processor(config_dict)
-
-    def load_hyperparameters(self, config_dict):
+    def load_hyperparameters(self, configs):
         # Define GA hyper-parameters
-        self.generange = config_dict['hyperparameters']['generange']   # Voltage range of CVs      # Nr of individuals in population
-        self.partition = config_dict['hyperparameters']['partition']   # Partitions of population
+        self.generange = configs['generange']   # Voltage range of CVs      # Nr of individuals in population
+        self.partition = configs['partition']   # Partitions of population
 
-        self.mutationrate = config_dict['hyperparameters']['mutationrate']
-        self.seed = config_dict['hyperparameters']['seed']
-        self.generations = config_dict['hyperparameters']['epochs']
+        self.mutationrate = configs['mutationrate']
+        self.seed = configs['seed']
+        self.generations = configs['epochs']
 
         self.genes = len(self.generange)
         self.genomes = sum(self.partition)
-        self.config_dict['hyperparameters']['genes'] = self.genes
-        self.config_dict['hyperparameters']['genomes'] = self.genomes
+        self.configs['hyperparameters']['genes'] = self.genes
+        self.configs['hyperparameters']['genomes'] = self.genomes
+        self.stop_thr = configs['stop_threshold']
+
+        self.fitness_function = choose_fitness_function(configs['fitness_function_type'])
+        self.load_trafo(configs['transformation'])
+
+    def load_trafo(self, configs):
+        self.gene_trafo_index = configs['gene_trafo_index']
+        if self.gene_trafo_index is not None:
+            self._input_trafo = get_trafo(configs['trafo_function'])
+        else:
+            self._input_trafo = lambda x, y: x  # define trafo as identity
+
+    def load_checkpoint_configs(self, configs):
+        self.use_checkpoints = configs['use_checkpoints']
+        self.save_path = configs['save_dir']
+        self.checkpoint_frequency = configs['save_interval']
+        self.save_dir = 'CHECKPOINT'
+
+    def get_torch_model_path(self):
+        return self.configs['ga_evaluation_configs']['torch_model_path']
+
 # %% Method implementing evolution
 # TODO: Implement feeding the validation_data and mask as optional kwargs
 
@@ -119,7 +126,7 @@ class GA:
         if (validation_data[0] is not None) and (validation_data[1] is not None):
             print('======= WARNING: Validation data is not processed in GA =======')
 
-        self.data = GAData(inputs, targets, mask, self.config_dict['hyperparameters'])
+        self.data = GAData(inputs, targets, mask, self.configs['hyperparameters'])
         self.pool = np.zeros((self.genomes, self.genes))
         self.opposite_pool = np.zeros((self.genomes, self.genes))
         for i in range(0, self.genes):
@@ -174,12 +181,12 @@ class GA:
 
     def save_results(self):
         save_directory = create_directory_timestamp(self.save_path, self.save_dir)
-        # save(mode='configs', path=save_directory, filename='configs.json', data=self.config_dict)
+        # save(mode='configs', path=save_directory, filename='configs.json', data=self.configs)
         save(mode='pickle', path=save_directory, filename='result.pickle', data=self.data.results)
 # %% Step to next generation
 
     def close_loop(self, gen):
-        if self.data.results['correlation'] >= self.stop_thr or (self.config_dict['checkpoints'] is True and gen % 5 == 0):
+        if self.data.results['correlation'] >= self.stop_thr or (self.use_checkpoints is True and gen % self.checkpoint_frequency == 0):
             self.save_results()
             if self.data.results['correlation'] >= self.stop_thr:
                 print(f"  STOPPED: Correlation {self.data.results['correlation']} reached {self.stop_thr}. ")
