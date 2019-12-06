@@ -68,7 +68,7 @@ class GA:
         self.control_voltage_genes_indices = np.delete(np.arange(self.input_electrode_no), self.input_indices)
         self.processor = get_processor(configs)
         self.load_control_voltage_configs(configs)
-        self.clipvalue = configs['waveform']['clipping_value'] * self.processor.get_amplification_value()  # 3.55
+        self.clipvalue = configs['waveform']['output_clipping_value'] * self.processor.get_amplification_value()  # 3.55
 
     def load_control_voltage_configs(self, configs):
         if configs['platform'] == 'hardware':
