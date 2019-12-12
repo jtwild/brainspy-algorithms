@@ -15,6 +15,7 @@ from bspyalgo.algorithms.genetic.core.trafo import get_trafo
 from bspyalgo.algorithms.genetic.core.data import GAData
 from bspyproc.bspyproc import get_processor
 from bspyproc.utils.waveform import generate_slopped_plato
+from bspyproc.utils.control import merge_inputs_and_control_voltages, get_control_voltage_indices
 
 
 # TODO: Implement Plotter
@@ -65,7 +66,7 @@ class GA:
         self.input_electrode_no = configs['input_electrode_no']
         self.input_indices = configs['input_indices']
         self.nr_control_genes = self.input_electrode_no - len(self.input_indices)
-        self.control_voltage_genes_indices = np.delete(np.arange(self.input_electrode_no), self.input_indices)
+        self.control_voltage_indices = get_control_voltage_indices(self.input_indices, self.input_electrode_no)
         self.processor = get_processor(configs)
         self.load_control_voltage_configs(configs)
         self.clipvalue = configs['waveform']['output_clipping_value'] * self.processor.get_amplification_value()  # 3.55
@@ -82,7 +83,7 @@ class GA:
         self.generange = configs['generange']   # Voltage range of CVs      # Nr of individuals in population
         self.partition = configs['partition']   # Partitions of population
 
-        self.mutationrate = configs['mutationrate']
+        # self.mutationrate = configs['mutationrate']
         self.seed = configs['seed']
         self.generations = configs['epochs']
 
@@ -157,17 +158,16 @@ class GA:
         genomes = len(gene_pool)
         output_popul = np.zeros((genomes,) + (len(inputs_wfm), 1))
         for j in range(genomes):
-            # Feed input to NN
-            # target_wfm.shape, genePool.shape --> (time-steps,) , (nr-genomes,nr-genes)
-            # control_voltage_genes = np.ones_like(target_wfm) * gene_pool[j, :, np.newaxis].T  # expand genome j into time-steps -> (time-steps,nr-genes)
+
             control_voltage_genes = self.get_control_voltages(gene_pool[j], len(inputs_wfm))  # , gene_pool[j, self.gene_trafo_index]
-            # g.shape,x.shape --> (time-steps,nr-CVs) , (input-dim, time-steps)
-            x_dummy = np.empty((control_voltage_genes.shape[0], self.input_electrode_no))  # dims of input (time-steps)xD_in
-            # Set the input scaling
-            # inputs_wfm.shape -> (nr-inputs,nr-time-steps)
-            x_dummy[:, self.input_indices] = self._input_trafo(inputs_wfm, gene_pool[j, self.gene_trafo_index])  # .T
-            x_dummy[:, self.control_voltage_genes_indices] = control_voltage_genes
-            output_popul[j] = self.processor.get_output(x_dummy)
+            inputs_without_offset_and_scale = self._input_trafo(inputs_wfm, gene_pool[j, self.gene_trafo_index])
+
+            # merge_inputs_and_control_voltages
+            # x_dummy = np.empty((control_voltage_genes.shape[0], self.input_electrode_no))  # dims of input (time-steps)xD_in
+            # x_dummy[:, self.input_indices] =
+            # x_dummy[:, ] = control_voltage_genes
+
+            output_popul[j] = self.processor.get_output(merge_inputs_and_control_voltages(inputs_without_offset_and_scale, control_voltage_genes, self.input_indices, self.control_voltage_indices))
         return output_popul
 
     def get_regular_control_voltages(self, gene_pool, input_length):
