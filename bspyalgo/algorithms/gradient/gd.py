@@ -23,11 +23,13 @@ class GD:
             self.loss_fn = choose_loss_function(self.hyperparams['loss_function'])
         else:
             self.loss_fn = loss_fn
-        self.reset_processor()
+        # self.reset_processor()
 
     def reset_processor(self):
 
         self.processor = get_processor(self.configs["processor"])
+        self.processor.info = {}
+        self.processor.info['smg_configs'] = self.configs
         self.load_configs()
         if 'regularizer' in dir(self.processor):
             self.loss_function = self.loss_with_regularizer
@@ -60,12 +62,14 @@ class GD:
 
 # TODO: Implement feeding the validation_data and mask as optional kwargs
 
-    def optimize(self, inputs, targets, validation_data=(None, None), mask=None):
+    def optimize(self, inputs, targets, validation_data=(None, None), data_info=None, mask=None):
         """Wraps trainer function in sgd_torch for use in algorithm_manager.
         """
         assert isinstance(inputs, torch.Tensor), f"Inputs must be torch.Tensor, they are {type(inputs)}"
         assert isinstance(targets, torch.Tensor), f"Targets must be torch.Tensor, they are {type(targets)}"
         self.reset_processor()
+        if data_info is not None:
+            self.processor.info['data_info'] = data_info
         data = GDData(inputs, targets, self.hyperparams['nr_epochs'], self.processor, validation_data, mask=mask)
         if validation_data[0] is not None and validation_data[1] is not None:
             data = self.sgd_train_with_validation(data)
