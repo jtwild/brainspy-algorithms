@@ -30,8 +30,8 @@ class GDData:
 
     def judge(self):
         self.results['best_performance'] = self.results['performance_history'][-1]
-        if isinstance(self.results['processor'], DNPU):
-            self.set_result_as_numpy('control_voltages', next(self.results['processor'].parameters()).detach())
+        if self.results['processor'].configs['platform'] == 'simulation' and self.results['processor'].configs['network_type'] == 'dnpu':
+            self.set_result_as_numpy('control_voltages', self.results['processor'].get_control_voltages())
         # self.print_results()
 
     def print_results(self):  # print(best_output.shape,self.target_wfm.shape)
