@@ -162,11 +162,6 @@ class GA:
             control_voltage_genes = self.get_control_voltages(gene_pool[j], len(inputs_wfm))  # , gene_pool[j, self.gene_trafo_index]
             inputs_without_offset_and_scale = self._input_trafo(inputs_wfm, gene_pool[j, self.gene_trafo_index])
 
-            # merge_inputs_and_control_voltages
-            # x_dummy = np.empty((control_voltage_genes.shape[0], self.input_electrode_no))  # dims of input (time-steps)xD_in
-            # x_dummy[:, self.input_indices] =
-            # x_dummy[:, ] = control_voltage_genes
-
             output_popul[j] = self.processor.get_output(merge_inputs_and_control_voltages(inputs_without_offset_and_scale, control_voltage_genes, self.input_indices, self.control_voltage_indices))
         return output_popul
 
