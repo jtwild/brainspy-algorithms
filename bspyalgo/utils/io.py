@@ -13,8 +13,11 @@ import torch
 import numpy as np
 
 
-def save(mode, path, filename, overwrite=False, **kwargs):
-    create_directory(path, overwrite=overwrite)
+def save(mode, path, filename, overwrite=False, timestamp=True, **kwargs):
+    if timestamp:
+        path = create_directory_timestamp(path, 'experiment', overwrite=overwrite)
+    else:
+        path = create_directory(path, overwrite=overwrite)
     file_path = os.path.join(path, filename)
 
     if mode == 'numpy':
@@ -30,6 +33,7 @@ def save(mode, path, filename, overwrite=False, **kwargs):
             save_torch(kwargs['data'], file_path)
         else:
             raise NotImplementedError(f"Mode {mode} is not recognised. Please choose a value between 'numpy', 'torch', 'pickle' and 'configs'.")
+    return path
 
 
 def save_pickle(pickle_data, file_path):
@@ -76,10 +80,10 @@ def create_directory(path, overwrite=False):
     return path
 
 
-def create_directory_timestamp(path, name):
+def create_directory_timestamp(path, name, overwrite=False):
     datetime = time.strftime("%Y_%m_%d_%H%M%S")
     path = os.path.join(path, name + '_' + datetime)
-    return create_directory(path)
+    return create_directory(path, overwrite=overwrite)
 
 
 if __name__ == '__main__':
