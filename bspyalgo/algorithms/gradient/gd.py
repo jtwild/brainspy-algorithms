@@ -23,10 +23,9 @@ class GD:
             self.loss_fn = choose_loss_function(self.hyperparams['loss_function'])
         else:
             self.loss_fn = loss_fn
-        # self.reset_processor()
+        self.init_processor()
 
-    def reset_processor(self):
-
+    def init_processor(self):
         self.processor = get_processor(self.configs["processor"])
         self.processor.info = {}
         self.processor.info['smg_configs'] = self.configs
@@ -35,6 +34,9 @@ class GD:
             self.loss_function = self.loss_with_regularizer
         else:
             self.loss_function = self.loss_fn
+
+    def reset_processor(self):
+        self.processor.reset()
 
     def load_configs(self):
 
