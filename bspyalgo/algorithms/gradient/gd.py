@@ -88,9 +88,12 @@ class GD:
         y_val = data.results['targets_val']
         looper = trange(self.hyperparams['nr_epochs'], desc='Initialising')
         for epoch in looper:
+            self.processor.train()
             self.train_step(x_train, y_train)
-            data.results['performance_history'][epoch, 0], prediction_training = self.evaluate_training_error(x_val, x_train, y_train)
-            data.results['performance_history'][epoch, 1], prediction_validation = self.evaluate_validation_error(x_val, y_val)
+            self.processor.eval()
+            with torch.no_grad():
+                data.results['performance_history'][epoch, 0], prediction_training = self.evaluate_training_error(x_val, x_train, y_train)
+                data.results['performance_history'][epoch, 1], prediction_validation = self.evaluate_validation_error(x_val, y_val)
             if self.dir_path and (epoch + 1) % self.configs['checkpoints']['save_interval'] == 0:
                 save('torch', self.dir_path, f'checkpoint_epoch{epoch}.pt', data=self.processor)
             if epoch % self.hyperparams['save_interval'] == 0:
@@ -110,7 +113,9 @@ class GD:
         y_train = data.results['targets']
         looper = trange(self.hyperparams['nr_epochs'], desc='Initialising')
         for epoch in looper:
+            self.processor.train()
             self.train_step(x_train, y_train)
+            self.processor.eval()
             with torch.no_grad():
                 prediction = self.processor(data.results['inputs'])
                 data.results['performance_history'][epoch] = self.loss_fn(prediction, y_train).item()  # data.results['targets']).item()
