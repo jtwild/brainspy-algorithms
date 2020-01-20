@@ -27,8 +27,7 @@ class GD:
 
     def init_processor(self):
         self.processor = get_processor(self.configs["processor"])
-        self.processor.info = {}
-        self.processor.info['smg_configs'] = self.configs
+
         self.load_configs()
         if 'regularizer' in dir(self.processor):
             self.loss_function = self.loss_with_regularizer
