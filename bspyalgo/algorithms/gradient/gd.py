@@ -1,5 +1,6 @@
 # TODO: ''' '''
 import torch
+import os
 from tqdm import trange
 from bspyproc.bspyproc import get_processor
 from bspyalgo.utils.io import save, create_directory_timestamp
@@ -56,7 +57,7 @@ class GD:
         if 'results_path' in self.configs.keys():
             self.dir_path = create_directory_timestamp(self.configs['results_path'], self.configs['experiment_name'])
         else:
-            self.dir_path = None
+            self.dir_path = create_directory_timestamp(os.path.join('tmp', 'dump'), self.configs['experiment_name'])
 
     def loss_with_regularizer(self, y_pred, y_train):
         return self.loss_fn(y_pred, y_train) + self.processor.regularizer()
@@ -166,6 +167,5 @@ class GD:
         return self.loss_fn(prediction, target).item(), prediction
 
     def save_results(self, filename):
-        if self.dir_path is not None:
-            save('configs', self.dir_path, f'configs.json', data=self.hyperparams)
-            save('torch', self.dir_path, filename, data=self.processor)
+        save('configs', self.dir_path, f'configs.json', timestamp=False, data=self.hyperparams)
+        save('torch', self.dir_path, filename, timestamp=False, data=self.processor)
