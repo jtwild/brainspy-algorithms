@@ -169,3 +169,6 @@ class GD:
     def save_results(self, filename):
         save('configs', self.dir_path, f'configs.json', timestamp=False, data=self.hyperparams)
         save('torch', self.dir_path, filename, timestamp=False, data=self.processor)
+
+    def save_smg_configs_dict(self):
+        self.processor.info['smg_configs'] = self.configs
