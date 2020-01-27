@@ -96,14 +96,14 @@ class GD:
                 data.results['performance_history'][epoch, 1], prediction_validation = self.evaluate_validation_error(x_val, y_val)
             if self.dir_path and (epoch + 1) % self.configs['checkpoints']['save_interval'] == 0:
                 save('torch', self.dir_path, f'checkpoint_epoch{epoch}.pt', data=self.processor)
-            if epoch % self.hyperparams['save_interval'] == 0:
-                training_error = data.results['performance_history'][epoch, 0]
-                validation_error = data.results['performance_history'][epoch, 1]
-                description = ' Epoch: ' + str(epoch) + ' Training Error:' + str(training_error) + ' Val. Error:' + str(validation_error)
-                looper.set_description(description)
-                if training_error <= self.hyperparams['stop_threshold'] and validation_error <= self.hyperparams['stop_threshold']:
-                    print(f"Reached threshold error {self.hyperparams['stop_threshold'] } for training and validation. Stopping")
-                    break
+        #    if epoch % self.hyperparams['save_interval'] == 0:
+            training_error = data.results['performance_history'][epoch, 0]
+            validation_error = data.results['performance_history'][epoch, 1]
+            description = ' Epoch: ' + str(epoch) + ' Training Error:' + str(training_error) + ' Val. Error:' + str(validation_error)
+            looper.set_description(description)
+            if training_error <= self.hyperparams['stop_threshold'] and validation_error <= self.hyperparams['stop_threshold']:
+                print(f"Reached threshold error {self.hyperparams['stop_threshold'] } for training and validation. Stopping")
+                break
         data.set_result_as_numpy('best_output', prediction_validation)
         data.set_result_as_numpy('best_output_training', prediction_training)
         return data
@@ -121,13 +121,13 @@ class GD:
                 data.results['performance_history'][epoch] = self.loss_fn(prediction, y_train).item()  # data.results['targets']).item()
             if self.configs['checkpoints']['use_checkpoints'] is True and (self.dir_path and (epoch + 1) % self.configs['checkpoints']['save_interval'] == 0):
                 save('torch', self.dir_path, f'checkpoint_epoch{epoch}.pt', data=self.processor)
-            if epoch % self.hyperparams['save_interval'] == 0:
-                error = data.results['performance_history'][epoch]
-                description = ' Epoch: ' + str(epoch) + ' Training Error:' + str(error)
-                looper.set_description(description)
-                if error <= self.hyperparams['stop_threshold']:
-                    print(f"Reached threshold error {self.hyperparams['stop_threshold']}. Stopping")
-                    break
+            # if epoch % self.hyperparams['save_interval'] == 0:
+            error = data.results['performance_history'][epoch]
+            description = ' Epoch: ' + str(epoch) + ' Training Error:' + str(error)
+            looper.set_description(description)
+            if error <= self.hyperparams['stop_threshold']:
+                print(f"Reached threshold error {self.hyperparams['stop_threshold']}. Stopping")
+                break
         data.set_result_as_numpy('best_output', prediction)
         return data
 
