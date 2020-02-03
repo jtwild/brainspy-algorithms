@@ -15,7 +15,7 @@ from bspyalgo.algorithms.genetic.core.trafo import get_trafo
 from bspyalgo.algorithms.genetic.core.data import GAData
 from bspyproc.bspyproc import get_processor
 from bspyproc.utils.waveform import generate_slopped_plato
-from bspyproc.utils.control import merge_inputs_and_control_voltages, get_control_voltage_indices
+from bspyproc.utils.control import merge_inputs_and_control_voltages_in_numpy, get_control_voltage_indices
 
 
 # TODO: Implement Plotter
@@ -162,7 +162,7 @@ class GA:
             control_voltage_genes = self.get_control_voltages(gene_pool[j], len(inputs_wfm))  # , gene_pool[j, self.gene_trafo_index]
             inputs_without_offset_and_scale = self._input_trafo(inputs_wfm, gene_pool[j, self.gene_trafo_index])
 
-            output_popul[j] = self.processor.get_output(merge_inputs_and_control_voltages(inputs_without_offset_and_scale, control_voltage_genes, self.input_indices, self.control_voltage_indices))
+            output_popul[j] = self.processor.get_output(merge_inputs_and_control_voltages_in_numpy(inputs_without_offset_and_scale, control_voltage_genes, self.input_indices, self.control_voltage_indices))
         return output_popul
 
     def get_regular_control_voltages(self, gene_pool, input_length):
