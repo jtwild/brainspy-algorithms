@@ -172,3 +172,9 @@ class GD:
 
     def save_smg_configs_dict(self):
         self.processor.info['smg_configs'] = self.configs
+
+    def save_model_mse(self, mse):
+        self.processor.info['data_info']['mse'] = mse
+        self.processor.configs['noise'] = True
+        if self.dir_path:
+            self.save_results('trained_network.pt')
