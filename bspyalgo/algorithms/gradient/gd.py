@@ -54,7 +54,9 @@ class GD:
             self.optimizer = torch.optim.Adam(self.processor.parameters(),
                                               lr=self.hyperparams['learning_rate'])
         print('Prediction using ADAM optimizer')
-        if 'results_path' in self.configs.keys():
+        if 'experiment_name' not in self.configs:
+            self.configs['experiment_name'] = 'experiment'
+        if 'results_path' in self.configs:
             self.dir_path = create_directory_timestamp(self.configs['results_path'], self.configs['experiment_name'])
         else:
             self.dir_path = create_directory_timestamp(os.path.join('tmp', 'dump'), self.configs['experiment_name'])
