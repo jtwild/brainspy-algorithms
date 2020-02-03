@@ -47,8 +47,8 @@ def save_torch(torch_model, file_path):
         Saves the model in given path, all other attributes are saved under
         the 'info' key as a new dictionary.
     """
-    torch_model.model.eval()
-    state_dic = torch_model.model.state_dict()
+    torch_model.eval()
+    state_dic = torch_model.state_dict()
     state_dic['info'] = torch_model.info
     torch.save(state_dic, file_path)
 
