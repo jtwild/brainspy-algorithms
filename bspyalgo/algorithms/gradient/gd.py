@@ -35,7 +35,8 @@ class GD:
         else:
             self.loss_function = self.loss_fn
 
-    def reset_processor(self):
+    def reset(self):
+        self.init_optimizer()
         self.processor.reset()
 
     def load_configs(self):
@@ -45,14 +46,7 @@ class GD:
             torch.manual_seed(self.hyperparams['seed'])
             print('The torch RNG is seeded with ', self.hyperparams['seed'])
 
-        if "betas" in self.hyperparams.keys():
-            self.optimizer = torch.optim.Adam(self.processor.parameters(),
-                                              lr=self.hyperparams['learning_rate'],
-                                              betas=self.hyperparams["betas"])
-            print("Set betas to values: ", {self.hyperparams["betas"]})
-        else:
-            self.optimizer = torch.optim.Adam(self.processor.parameters(),
-                                              lr=self.hyperparams['learning_rate'])
+        self.init_optimizer()
         print('Prediction using ADAM optimizer')
         if 'experiment_name' not in self.configs:
             self.configs['experiment_name'] = 'experiment'
@@ -61,8 +55,19 @@ class GD:
         else:
             self.dir_path = create_directory_timestamp(os.path.join('tmp', 'dump'), self.configs['experiment_name'])
 
+    def init_optimizer(self):
+        if "betas" in self.hyperparams.keys():
+            self.optimizer = torch.optim.Adam(self.processor.parameters(),
+                                              lr=self.hyperparams['learning_rate'],
+                                              betas=self.hyperparams["betas"])
+            print("Set betas to values: ", {self.hyperparams["betas"]})
+        else:
+            self.optimizer = torch.optim.Adam(self.processor.parameters(),
+                                              lr=self.hyperparams['learning_rate'])
+
     def loss_with_regularizer(self, y_pred, y_train):
         return self.loss_fn(y_pred, y_train) + self.processor.regularizer()
+
 
 # TODO: Implement feeding the validation_data and mask as optional kwargs
 
@@ -71,7 +76,8 @@ class GD:
         """
         assert isinstance(inputs, torch.Tensor), f"Inputs must be torch.Tensor, they are {type(inputs)}"
         assert isinstance(targets, torch.Tensor), f"Targets must be torch.Tensor, they are {type(targets)}"
-        self.reset_processor()
+
+        self.reset()
         if data_info is not None:
             self.processor.info['data_info'] = data_info
         data = GDData(inputs, targets, self.hyperparams['nr_epochs'], self.processor, validation_data, mask=mask)
