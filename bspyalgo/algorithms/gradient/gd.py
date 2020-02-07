@@ -59,8 +59,10 @@ class GD:
         if "betas" in self.hyperparams.keys():
             self.optimizer = torch.optim.Adam(self.processor.parameters(),
                                               lr=self.hyperparams['learning_rate'],
-                                              betas=self.hyperparams["betas"])
-            print("Set betas to values: ", {self.hyperparams["betas"]})
+                                              betas=self.hyperparams["betas"]
+                                              )
+            print("Set betas to values from the config file: ")
+            print(*self.hyperparams["betas"], sep=", ")
         else:
             self.optimizer = torch.optim.Adam(self.processor.parameters(),
                                               lr=self.hyperparams['learning_rate'])
@@ -70,6 +72,7 @@ class GD:
 
 
 # TODO: Implement feeding the validation_data and mask as optional kwargs
+
 
     def optimize(self, inputs, targets, validation_data=(None, None), data_info=None, mask=None):
         """Wraps trainer function in sgd_torch for use in algorithm_manager.
