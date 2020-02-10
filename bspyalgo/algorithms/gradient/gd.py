@@ -5,6 +5,7 @@ from tqdm import trange
 from bspyproc.bspyproc import get_processor
 from bspyalgo.utils.io import save, create_directory_timestamp
 from bspyalgo.algorithms.gradient.core.data import GDData
+from bspyalgo.algorithms.gradient.core.optim import get_optimizer
 from bspyalgo.algorithms.gradient.core.losses import choose_loss_function
 
 
@@ -47,7 +48,7 @@ class GD:
             print('The torch RNG is seeded with ', self.hyperparams['seed'])
 
         self.init_optimizer()
-        print('Prediction using ADAM optimizer')
+
         if 'experiment_name' not in self.configs:
             self.configs['experiment_name'] = 'experiment'
         if 'results_path' in self.configs:
@@ -56,16 +57,7 @@ class GD:
             self.dir_path = create_directory_timestamp(os.path.join('tmp', 'dump'), self.configs['experiment_name'])
 
     def init_optimizer(self):
-        if "betas" in self.hyperparams.keys():
-            self.optimizer = torch.optim.Adam(self.processor.parameters(),
-                                              lr=self.hyperparams['learning_rate'],
-                                              betas=self.hyperparams["betas"]
-                                              )
-            print("Set betas to values from the config file: ")
-            print(*self.hyperparams["betas"], sep=", ")
-        else:
-            self.optimizer = torch.optim.Adam(self.processor.parameters(),
-                                              lr=self.hyperparams['learning_rate'])
+        self.optimizer = get_optimizer(self.processor.parameters(), self.hyperparams)
 
     def loss_with_regularizer(self, y_pred, y_train):
         return self.loss_fn(y_pred, y_train) + self.processor.regularizer()
