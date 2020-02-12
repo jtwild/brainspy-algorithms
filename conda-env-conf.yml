@@ -3,8 +3,8 @@ dependencies:
    - python=3.6
    - ipython
    - pip
+   - pyjson
+   - tqdm
    - pip:
-     - pyjson
-     - tqdm
-     - git+https://github.com/BraiNEdarwin/brainspy-instruments.git
      - git+https://github.com/BraiNEdarwin/brainspy-processors.git
+     - torch-optimizer
