@@ -57,14 +57,13 @@ class GD:
             self.dir_path = create_directory_timestamp(os.path.join('tmp', 'dump'), self.configs['experiment_name'])
 
     def init_optimizer(self):
-        self.optimizer = get_optimizer(self.processor.parameters(), self.hyperparams)
+        self.optimizer = get_optimizer(filter(lambda p: p.requires_grad, self.processor.parameters()), self.hyperparams)
 
     def loss_with_regularizer(self, y_pred, y_train):
         return self.loss_fn(y_pred, y_train) + self.processor.regularizer()
 
 
 # TODO: Implement feeding the validation_data and mask as optional kwargs
-
 
     def optimize(self, inputs, targets, validation_data=(None, None), data_info=None, mask=None):
         """Wraps trainer function in sgd_torch for use in algorithm_manager.
