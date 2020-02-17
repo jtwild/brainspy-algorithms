@@ -32,6 +32,8 @@ class GDData:
         self.results['best_performance'] = self.results['performance_history'][-1]
         if self.results['processor'].configs['platform'] == 'simulation' and self.results['processor'].configs['network_type'] == 'dnpu':
             self.set_result_as_numpy('control_voltages', self.results['processor'].get_control_voltages())
+        self.results['inputs'] = TorchUtils.get_numpy_from_tensor(self.results['inputs'])
+        self.results['targets'] = TorchUtils.get_numpy_from_tensor(self.results['targets'])
         # self.print_results()
 
     def print_results(self):  # print(best_output.shape,self.target_wfm.shape)
