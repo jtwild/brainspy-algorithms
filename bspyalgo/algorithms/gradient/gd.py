@@ -58,7 +58,7 @@ class GD:
 
 # TODO: Implement feeding the validation_data and mask as optional kwargs
 
-    def optimize(self, inputs, targets, validation_data=(None, None), data_info=None, mask=None):
+    def optimize(self, inputs, targets, validation_data=(None, None), data_info=None, mask=None, save_dir=None):
         """Wraps trainer function in sgd_torch for use in algorithm_manager.
         """
         assert isinstance(inputs, torch.Tensor), f"Inputs must be torch.tensor, they are {type(inputs)}"
@@ -68,12 +68,15 @@ class GD:
         if data_info is not None:
             self.processor.info['data_info'] = data_info
         data = GDData(inputs, targets, self.hyperparams['nr_epochs'], self.processor, validation_data, mask=mask)
+        
         if validation_data[0] is not None and validation_data[1] is not None:
             data = self.sgd_train_with_validation(data)
         else:
             data = self.sgd_train_without_validation(data)
-        if self.dir_path:
-            self.save_results('trained_network.pt')
+
+        if save_dir:
+            save('configs', save_dir, f'configs.json', timestamp=False, data=self.configs)
+            save('torch', save_dir, 'trained_network.pt', timestamp=False, data=self.processor)
         return data
 
     def sgd_train_with_validation(self, data):
@@ -88,8 +91,8 @@ class GD:
             # with torch.no_grad():
             data.results['performance_history'][epoch, 0], prediction_training = self.evaluate_training_error(x_val, x_train, y_train)
             data.results['performance_history'][epoch, 1], prediction_validation = self.evaluate_validation_error(x_val, y_val)
-            if self.dir_path and (epoch + 1) % self.configs['checkpoints']['save_interval'] == 0:
-                save('torch', self.dir_path, f'checkpoint_epoch{epoch}.pt', data=self.processor)
+            if (epoch + 1) % self.configs['checkpoints']['save_interval'] == 0:
+                save('torch', self.configs['checkpoints']['save_dir'], f'checkpoint_epoch{epoch}.pt', data=self.processor)
         #    if epoch % self.hyperparams['save_interval'] == 0:
             training_error = data.results['performance_history'][epoch, 0]
             validation_error = data.results['performance_history'][epoch, 1]
@@ -113,8 +116,8 @@ class GD:
             with torch.no_grad():
                 prediction = self.processor(data.results['inputs'])
                 data.results['performance_history'][epoch] = self.loss_fn(prediction, y_train).item()  # data.results['targets']).item()
-            if self.configs['checkpoints']['use_checkpoints'] is True and (self.dir_path and (epoch + 1) % self.configs['checkpoints']['save_interval'] == 0):
-                save('torch', self.dir_path, f'checkpoint_epoch{epoch}.pt', data=self.processor)
+            if self.configs['checkpoints']['use_checkpoints'] is True and ((epoch + 1) % self.configs['checkpoints']['save_interval'] == 0):
+                save('torch', self.configs['checkpoints']['save_dir'], f'checkpoint_epoch{epoch}.pt', data=self.processor)
             # if epoch % self.hyperparams['save_interval'] == 0:
             error = data.results['performance_history'][epoch]
             description = ' Epoch: ' + str(epoch) + ' Training Error:' + str(error)
@@ -161,15 +164,9 @@ class GD:
         target = y_train[get_indices]
         return self.loss_fn(prediction, target).item(), prediction
 
-    def save_results(self, filename):
-        save('configs', self.dir_path, f'configs.json', timestamp=False, data=self.hyperparams)
-        save('torch', self.dir_path, filename, timestamp=False, data=self.processor)
-
     def save_smg_configs_dict(self):
         self.processor.info['smg_configs'] = self.configs
 
-    def save_model_mse(self, mse):
+    def save_model_mse(self, mse, save_dir):
         self.processor.info['data_info']['mse'] = mse
-        self.processor.configs['noise'] = True
-        if self.dir_path:
-            self.save_results('trained_network.pt')
+        save('torch', save_dir, 'trained_network.pt', timestamp=False, data=self.processor)
