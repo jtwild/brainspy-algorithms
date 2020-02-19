@@ -40,28 +40,3 @@ def get_gd(configs):
     else:
         raise NotImplementedError('Platform not implemented')
 
-
-# %% MAIN
-if __name__ == '__main__':
-    import matplotlib.pyplot as plt
-    import numpy as np
-    import torch
-
-    # Get device
-    DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    # Create data
-    x = 0.5 * np.random.randn(10, 2)
-    INPUTS = torch.Tensor(x).to(DEVICE)
-    TARGETS = torch.Tensor(5. * np.ones((10, 1))).to(DEVICE)
-    x = 0.5 * np.random.randn(4, 2)
-    INPUTS_VAL = torch.Tensor(x).to(DEVICE)
-    TARGETS_VAL = torch.Tensor(5. * np.ones((4, 1))).to(DEVICE)
-
-    ALGO = get_algorithm('./configs/gd/gd_configs_template.json')
-    DATA = ALGO.optimize(INPUTS, TARGETS, validation_data=(INPUTS_VAL, TARGETS_VAL))
-
-    plt.figure()
-    plt.plot(DATA.results['performance_history'])
-    plt.title("Loss per epoch")
-    plt.legend(["Training", "Validation"])
-    plt.show()
