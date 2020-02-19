@@ -67,7 +67,7 @@ class GD:
 
 # TODO: Implement feeding the validation_data and mask as optional kwargs
 
-    def optimize(self, inputs, targets, validation_data=(None, None), data_info=None, mask=None, save_model=True):
+    def optimize(self, inputs, targets, validation_data=(None, None), data_info=None, mask=None, save_data=True):
         """Wraps trainer function in sgd_torch for use in algorithm_manager.
         """
         assert isinstance(inputs, torch.Tensor), f"Inputs must be torch.tensor, they are {type(inputs)}"
@@ -84,9 +84,9 @@ class GD:
             data = self.sgd_train_without_validation(data)
 
         if save_model:
-            save('configs', os.path.join(self.base_dir,self.default_output_dir), filename='configs.json', timestamp=False, data=self.configs)
-            save('torch', os.path.join(self.base_dir,self.default_output_dir), filename='trained_network.pt', timestamp=False, data=self.processor)
-            save(mode='pickle', path=os.path.join(self.base_dir,self.default_output_dir), filename='result.pickle', data=self.data.results)
+            save('configs', path=os.path.join(default_output_dir, 'configs.json'), data=self.configs)
+            save('torch', path=os.path.join(default_output_dir, 'model.pt'), data=self.processor)
+            save(mode='pickle', path=os.path.join(default_output_dir, 'results.pickle'), data=self.data.results)
         return data
 
     def sgd_train_with_validation(self, data):

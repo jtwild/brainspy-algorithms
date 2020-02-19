@@ -13,12 +13,12 @@ import torch
 import numpy as np
 
 
-def save(mode, path, filename, overwrite=False, timestamp=True, **kwargs):
-    if timestamp:
-        path = create_directory_timestamp(path, 'experiment', overwrite=overwrite)
-    else:
-        path = create_directory(path, overwrite=overwrite)
-    file_path = os.path.join(path, filename)
+def save(mode, file_path, **kwargs) # filename, overwrite=False, timestamp=True, **kwargs):
+    # if timestamp:
+    #     path = create_directory_timestamp(path, 'experiment', overwrite=overwrite)
+    # else:
+    #     path = create_directory(path, overwrite=overwrite)
+    # file_path = os.path.join(path, filename)
 
     if mode == 'numpy':
         np.savez(file_path, **kwargs)
