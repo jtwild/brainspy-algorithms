@@ -49,13 +49,6 @@ class GD:
 
         self.init_optimizer()
 
-        if 'experiment_name' not in self.configs:
-            self.configs['experiment_name'] = 'experiment'
-        if 'results_path' in self.configs:
-            self.dir_path = create_directory_timestamp(self.configs['results_path'], self.configs['experiment_name'])
-        else:
-            self.dir_path = create_directory_timestamp(os.path.join('tmp', 'dump'), self.configs['experiment_name'])
-
     def init_optimizer(self):
         self.optimizer = get_optimizer(filter(lambda p: p.requires_grad, self.processor.parameters()), self.hyperparams)
 
@@ -68,8 +61,8 @@ class GD:
     def optimize(self, inputs, targets, validation_data=(None, None), data_info=None, mask=None):
         """Wraps trainer function in sgd_torch for use in algorithm_manager.
         """
-        assert isinstance(inputs, torch.tensor), f"Inputs must be torch.tensor, they are {type(inputs)}"
-        assert isinstance(targets, torch.tensor), f"Targets must be torch.tensor, they are {type(targets)}"
+        assert isinstance(inputs, torch.Tensor), f"Inputs must be torch.tensor, they are {type(inputs)}"
+        assert isinstance(targets, torch.Tensor), f"Targets must be torch.tensor, they are {type(targets)}"
 
         self.reset()
         if data_info is not None:

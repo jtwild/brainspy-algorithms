@@ -47,9 +47,9 @@ def task_to_solve(algorithm, INPUTS, TARGETS, INPUTS_VAL, TARGETS_VAL,
 
 
 def get_accuracy(x, targets):
-    if isinstance(x, torch.tensor):
+    if isinstance(x, torch.Tensor):
         x = x.cpu().data.numpy()
-    if isinstance(targets, torch.tensor):
+    if isinstance(targets, torch.Tensor):
         targets = targets.cpu().data.numpy()
     accuracy, _, _ = perceptron(x, targets)
     return accuracy
