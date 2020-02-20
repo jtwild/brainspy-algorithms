@@ -19,7 +19,8 @@ class GD:
 
     def __init__(self, configs, loss_fn=torch.nn.MSELoss(), is_main=False):
         self.configs = configs
-        self.init_dirs(configs['base_dir'], is_main)
+        if is_main:
+            self.init_dirs(configs['base_dir'], True)
         self.hyperparams = configs["hyperparameters"]
         
         if 'loss_function' in self.hyperparams.keys():

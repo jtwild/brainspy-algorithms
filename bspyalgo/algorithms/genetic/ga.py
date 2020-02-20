@@ -57,12 +57,14 @@ class GA:
         # Internal parameters and variables
         self._next_state = None
 
-    def init_configs(self, configs):
+    def init_configs(self, configs, is_main=False):
         self.configs = configs
         self.init_processor(configs['processor'])
         self.init_hyperparameters(configs['hyperparameters'])
         self.init_checkpoint_configs(configs['checkpoints'])
         self.default_output_dir = 'reproducibility'
+        if is_main:
+            self.init_dirs(configs['results_base_dir'], is_main)
 
     def init_dirs(self, base_dir, is_main=False):
         if is_main:
