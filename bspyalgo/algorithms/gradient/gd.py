@@ -3,7 +3,7 @@ import torch
 import os
 from tqdm import trange
 from bspyproc.bspyproc import get_processor
-from bspyalgo.utils.io import save, create_directory_timestamp
+from bspyalgo.utils.io import save, create_directory, create_directory_timestamp
 from bspyalgo.algorithms.gradient.core.data import GDData
 from bspyalgo.algorithms.gradient.core.optim import get_optimizer
 from bspyalgo.algorithms.gradient.core.losses import choose_loss_function
@@ -17,9 +17,9 @@ class GD:
     @author: hruiz
     """
 
-    def __init__(self, configs, loss_fn=torch.nn.MSELoss()):
+    def __init__(self, configs, loss_fn=torch.nn.MSELoss(), is_main=False):
         self.configs = configs
-        self.init_dirs(configs['base_dir'])
+        self.init_dirs(configs['base_dir'], is_main)
         self.hyperparams = configs["hyperparameters"]
         
         if 'loss_function' in self.hyperparams.keys():
@@ -28,9 +28,12 @@ class GD:
             self.loss_fn = loss_fn
         self.init_processor()
 
-    def init_dirs(self, base_dir):
-        base_dir = os.path.join(base_dir, 'gradient_descent_data')
-        create_directory(base_dir)
+    def init_dirs(self, base_dir, is_main=False):
+        if main:
+            base_dir = create_directory_timestamp(base_dir,'gradient_descent_data')
+        else:
+            base_dir = os.path.join(base_dir, 'gradient_descent_data')
+            create_directory(base_dir)
         self.default_output_dir = os.path.join(base_dir,'reproducibility')
         create_directory(default_output_dir)
         self.default_checkpoints_dir = os.path.join(base_dir,'checkpoints')
