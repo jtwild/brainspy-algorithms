@@ -6,6 +6,7 @@ from bspyproc.bspyproc import get_processor
 from bspyalgo.utils.io import save, create_directory_timestamp
 from bspyalgo.algorithms.gradient.core.data import GDData
 from bspyalgo.algorithms.gradient.core.losses import choose_loss_function
+import matplotlib.pyplot as plt  # For live plotting the current results.
 
 
 class GD:
@@ -71,15 +72,19 @@ class GD:
 
 # TODO: Implement feeding the validation_data and mask as optional kwargs
 
-    def optimize(self, inputs, targets, validation_data=(None, None), data_info=None, mask=None):
+    def optimize(self, inputs, targets=None, validation_data=(None, None), data_info=None, mask=None):
         """Wraps trainer function in sgd_torch for use in algorithm_manager.
         """
         assert isinstance(inputs, torch.Tensor), f"Inputs must be torch.Tensor, they are {type(inputs)}"
-        assert isinstance(targets, torch.Tensor), f"Targets must be torch.Tensor, they are {type(targets)}"
+        if targets != None:
+            assert isinstance(targets, torch.Tensor), f"Targets must be torch.Tensor, they are {type(targets)}"
 
         self.reset()
         if data_info is not None:
             self.processor.info['data_info'] = data_info
+        # If targets==None, this will be passed tyo GDData, who will then ignore it.
+        # Also, the targets=None will be propegated upto the loss function, which will know what to with it in case
+        # it is sigmoid_distance. Otherwise, cannot be done and errors will arises.
         data = GDData(inputs, targets, self.hyperparams['nr_epochs'], self.processor, validation_data, mask=mask)
         if validation_data[0] is not None and validation_data[1] is not None:
             data = self.sgd_train_with_validation(data)
@@ -119,6 +124,29 @@ class GD:
         x_train = data.results['inputs']
         y_train = data.results['targets']
         looper = trange(self.hyperparams['nr_epochs'], desc='Initialising')
+
+        # Initialize live plot if required:
+        if 'live_plot' in self.configs['checkpoints']:
+            prediction = self.processor(data.results['inputs'])
+            if self.configs['checkpoints']['live_plot'] is True:
+                fig, axs = plt.subplots(1,2, sharey=False)
+
+                output_line = axs[0].plot( torch.zeros_like(prediction), prediction.detach().numpy(),  marker="_", linestyle='None')[0]
+                loss_line = axs[1].plot( 0,0 )[0]
+
+                axs[0].set_ylabel('Output curent (nA)')
+                axs[1].set_ylabel('Loss')
+                axs[1].set_xlabel('Epoch')
+                fig.suptitle('Live training plot')
+                axs[0].grid(which='major')
+                axs[1].grid(which='major')
+                fig.canvas.draw()
+
+                # Set as topmost figure. Does not seem to work reliable.
+                fig.canvas.manager.window.activateWindow()
+                fig.canvas.manager.window.raise_()
+
+        # Start training loop
         for epoch in looper:
             # self.processor.train()
             self.train_step(x_train, y_train)
@@ -135,6 +163,22 @@ class GD:
             if error <= self.hyperparams['stop_threshold']:
                 print(f"Reached threshold error {self.hyperparams['stop_threshold']}. Stopping")
                 break
+            if 'live_plot' in self.configs['checkpoints']:
+                if self.configs['checkpoints']['live_plot'] is True and ( (epoch+1) % self.configs['checkpoints']['live_plot_interval'] ) == 0:
+                    # Update data
+                    loss_line.set_data(range(len(data.results['performance_history'][0:epoch])), data.results['performance_history'][0:epoch])
+                    output_line.set_ydata(prediction.detach().numpy())
+
+                    # Rescale axes
+                    axs[0].relim()
+                    axs[0].autoscale_view(True,True,True)
+                    axs[1].relim()
+                    axs[1].autoscale_view(True,True,True)
+
+                    # Update plots
+                    fig.canvas.draw()
+                    fig.canvas.flush_events()
+                    #plt.pause(self.configs['checkpoints']['live_plot_delay'])
         data.set_result_as_numpy('best_output', prediction)
         return data
 
@@ -150,7 +194,12 @@ class GD:
         x_mb = x_train[indices]
         y_pred = self.processor(x_mb)
 
-        loss = self.loss_function(y_pred, y_train[indices])
+        if y_train is not None:
+            loss = self.loss_function(y_pred, y_train[indices])
+        else:
+            # If y_train is none, we have no predefined outputs and call a loss function which also does not have this.
+            # This will break if the combination loss_fn <-> defined targets  is wrong.
+            loss = self.loss_function(y_pred, None)
 
         self.optimizer.zero_grad()
         loss.backward()
