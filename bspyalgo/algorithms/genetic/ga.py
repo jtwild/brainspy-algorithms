@@ -107,7 +107,7 @@ class GA:
         self.use_checkpoints = configs['use_checkpoints']
         self.save_path = configs['save_dir']
         self.checkpoint_frequency = configs['save_interval']
-        self.save_dir = 'CHECKPOINT'
+        self.save_dir = 'checkpoints'
 
     def get_torch_model_path(self):
         return self.configs['ga_evaluation_configs']['torch_model_path']

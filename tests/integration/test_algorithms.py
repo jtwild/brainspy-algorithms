@@ -31,9 +31,9 @@ def task_to_solve(algorithm, INPUTS, TARGETS, INPUTS_VAL, TARGETS_VAL,
             break
     assert found, f'Gate not found; accuracy was {accuracy}'
 
-    if type(OUTPUTS) is torch.Tensor:
+    if type(OUTPUTS) is torch.tensor:
         OUTPUTS = OUTPUTS.cpu().numpy()
-    if type(TARGETS) is torch.Tensor:
+    if type(TARGETS) is torch.tensor:
         if validation:
             TARGETS = TARGETS_VAL.cpu().numpy()
         else:
