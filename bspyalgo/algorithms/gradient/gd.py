@@ -19,8 +19,7 @@ class GD:
 
     def __init__(self, configs, loss_fn=torch.nn.MSELoss(), is_main=False):
         self.configs = configs
-        if is_main:
-            self.init_dirs(configs['base_dir'], True)
+        self.is_main = is_main
         self.hyperparams = configs["hyperparameters"]
         
         if 'loss_function' in self.hyperparams.keys():
@@ -29,16 +28,16 @@ class GD:
             self.loss_fn = loss_fn
         self.init_processor()
 
-    def init_dirs(self, base_dir, is_main=False):
-        if main:
+    def init_dirs(self, base_dir):
+        if self.is_main:
             base_dir = create_directory_timestamp(base_dir,'gradient_descent_data')
         else:
             base_dir = os.path.join(base_dir, 'gradient_descent_data')
             create_directory(base_dir)
         self.default_output_dir = os.path.join(base_dir,'reproducibility')
-        create_directory(default_output_dir)
+        create_directory(self.default_output_dir)
         self.default_checkpoints_dir = os.path.join(base_dir,'checkpoints')
-        create_directory(default_checkpoints_dir)
+        create_directory(self.default_checkpoints_dir)
 
     def init_processor(self):
         self.processor = get_processor(self.configs["processor"])
@@ -76,7 +75,8 @@ class GD:
         """
         assert isinstance(inputs, torch.Tensor), f"Inputs must be torch.tensor, they are {type(inputs)}"
         assert isinstance(targets, torch.Tensor), f"Targets must be torch.tensor, they are {type(targets)}"
-
+        if save_data:
+            self.init_dirs(self.configs['results_base_dir'])
         self.reset()
         if data_info is not None:
             self.processor.info['data_info'] = data_info
@@ -87,10 +87,10 @@ class GD:
         else:
             data = self.sgd_train_without_validation(data)
 
-        if save_model:
-            save('configs', path=os.path.join(default_output_dir, 'configs.json'), data=self.configs)
-            save('torch', path=os.path.join(default_output_dir, 'model.pt'), data=self.processor)
-            save(mode='pickle', path=os.path.join(default_output_dir, 'results.pickle'), data=self.data.results)
+        if save_data:
+            save('configs', file_path=os.path.join(self.default_output_dir, 'configs.json'), data=self.configs)
+            save('torch', file_path=os.path.join(self.default_output_dir, 'model.pt'), data=self.processor)
+            save(mode='pickle', file_path=os.path.join(self.default_output_dir, 'results.pickle'), data=data.results)
         return data
 
     def sgd_train_with_validation(self, data):
