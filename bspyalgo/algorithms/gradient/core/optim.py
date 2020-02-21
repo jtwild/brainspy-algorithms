@@ -1,5 +1,5 @@
 import torch
-import torch_optimizer as optim
+import torch.optim as optim
 
 
 def get_optimizer(parameters, configs):
@@ -29,11 +29,11 @@ def get_adam(parameters, configs):
     if "betas" in configs.keys():
         print("Set betas to values from the config file: ")
         print(*configs["betas"], sep=", ")
-        return torch.optim.Adam(parameters,
+        return optim.Adam(parameters,
                                 lr=configs['learning_rate'],
                                 betas=configs["betas"]
                                 )
 
     else:
-        return torch.optim.Adam(parameters,
+        return optim.Adam(parameters,
                                 lr=configs['learning_rate'])
