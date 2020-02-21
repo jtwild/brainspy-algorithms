@@ -4,19 +4,20 @@ Created on Thu May 16 18:16:36 2019
 @author: HCRuiz and A. Uitzetter
 """
 
+import os
 import random
 import numpy as np
 
 from tqdm import trange
 
 from bspyalgo.algorithms.genetic.core.fitness import choose_fitness_function
-from bspyalgo.utils.io import create_directory_timestamp, save
+from bspyalgo.utils.io import create_directory, create_directory_timestamp, save
 from bspyalgo.algorithms.genetic.core.trafo import get_trafo
 from bspyalgo.algorithms.genetic.core.data import GAData
 from bspyproc.bspyproc import get_processor
 from bspyproc.utils.waveform import generate_slopped_plato
 from bspyproc.utils.control import merge_inputs_and_control_voltages_in_numpy, get_control_voltage_indices
-
+from bspyalgo.utils.io import create_directory, save
 
 # TODO: Implement Plotter
 
@@ -51,18 +52,32 @@ class GA:
 
     '''
 
-    def __init__(self, configs):
-        self.load_configs(configs)
+    def __init__(self, configs, is_main=False):
+        self.init_configs(configs, is_main)
         # Internal parameters and variables
         self._next_state = None
 
-    def load_configs(self, configs):
+    def init_configs(self, configs, is_main=False):
         self.configs = configs
-        self.load_processor(configs['processor'])
-        self.load_hyperparameters(configs['hyperparameters'])
-        self.load_checkpoint_configs(configs['checkpoints'])
+        self.init_processor(configs['processor'])
+        self.init_hyperparameters(configs['hyperparameters'])
+        self.init_checkpoint_configs(configs['checkpoints'])
+        self.default_output_dir = 'reproducibility'
+        if is_main:
+            self.init_dirs(configs['results_base_dir'], is_main)
 
-    def load_processor(self, configs):
+    def init_dirs(self, base_dir, is_main=False):
+        if is_main:
+            base_dir = create_directory_timestamp(base_dir,'genetic_algorithm_data')
+        else:
+            base_dir = os.path.join(base_dir, 'genetic_algorithm_data')
+            create_directory(base_dir)
+        self.default_output_dir = os.path.join(base_dir, 'reproducibility')
+        create_directory(self.default_output_dir)
+        self.default_checkpoints_dir = os.path.join(base_dir, 'checkpoints')
+        create_directory(self.default_checkpoints_dir)
+
+    def init_processor(self, configs):
         self.input_electrode_no = configs['input_electrode_no']
         self.input_indices = configs['input_indices']
         self.nr_control_genes = self.input_electrode_no - len(self.input_indices)
@@ -78,7 +93,7 @@ class GA:
         else:
             self.get_control_voltages = self.get_regular_control_voltages
 
-    def load_hyperparameters(self, configs):
+    def init_hyperparameters(self, configs):
         # Define GA hyper-parameters
         self.generange = configs['generange']   # Voltage range of CVs      # Nr of individuals in population
         self.partition = configs['partition']   # Partitions of population
@@ -103,11 +118,9 @@ class GA:
         else:
             self._input_trafo = lambda x, y: x  # define trafo as identity
 
-    def load_checkpoint_configs(self, configs):
+    def init_checkpoint_configs(self, configs):
         self.use_checkpoints = configs['use_checkpoints']
-        self.save_path = configs['save_dir']
         self.checkpoint_frequency = configs['save_interval']
-        self.save_dir = 'checkpoints'
 
     def get_torch_model_path(self):
         return self.configs['ga_evaluation_configs']['torch_model_path']
@@ -115,7 +128,7 @@ class GA:
 # %% Method implementing evolution
 # TODO: Implement feeding the validation_data and mask as optional kwargs
 
-    def optimize(self, inputs, targets, validation_data=(None, None), mask=None):
+    def optimize(self, inputs, targets, validation_data=(None, None), mask=None, save_data=True):
         '''
             inputs = The inputs of the algorithm. They need to be in numpy. The GA also requires the input to be a waveform.
             targets = The targets to which the algorithm will try to fit the inputs. They need to be in numpy.
@@ -143,14 +156,17 @@ class GA:
                                                  clipvalue=self.clipvalue)
 
             self.data.update({'generation': gen, 'genes': self.pool, 'outputs': self.outputs, 'fitness': self.fitness})
+            looper.set_description(self.data.get_description(gen))  # , end - start))
 
-            if self.close_loop(gen):
+            if self.check_threshold(save_data):
                 break
 
-            if gen % 100:
-                looper.set_description(self.data.get_description(gen))  # , end - start))
+            if (self.use_checkpoints is True and gen % self.checkpoint_frequency == 0):
+                save(mode='pickle', file_path=os.path.join(self.default_checkpoints_dir, 'result.pickle'), data=self.data.results)
+
             self.next_gen(gen)
 
+        self.save_results(save_data)
         return self.data
 
     def evaluate_population(self, inputs_wfm, gene_pool, target_wfm):
@@ -174,18 +190,17 @@ class GA:
             control_voltages[:, i] = self.base_slopped_plato * gene_pool[i]
         return control_voltages
 
-    def save_results(self):
-        save_directory = create_directory_timestamp(self.save_path, self.save_dir)
-        # save(mode='configs', path=save_directory, filename='configs.json', data=self.configs)
-        save(mode='pickle', path=save_directory, filename='result.pickle', data=self.data.results)
+    def save_results(self, save_data):
+        if save_data:
+            save(mode='pickle', file_path=os.path.join(self.default_output_dir, 'results.pickle'), data=self.data.results)
+            save(mode='configs', file_path=os.path.join(self.default_output_dir, 'configs.json'), data=self.configs)
 # %% Step to next generation
 
-    def close_loop(self, gen):
-        if self.data.results['correlation'] >= self.stop_thr or (self.use_checkpoints is True and gen % self.checkpoint_frequency == 0):
-            self.save_results()
-            if self.data.results['correlation'] >= self.stop_thr:
-                print(f"  STOPPED: Correlation {self.data.results['correlation']} reached {self.stop_thr}. ")
-                return True
+    def check_threshold(self, save_data):
+        if self.data.results['correlation'] >= self.stop_thr:
+            print(f"  STOPPED: Correlation {self.data.results['correlation']} reached {self.stop_thr}. ")
+            self.save_results(save_data)
+            return True
         return False
 
     def next_gen(self, gen):

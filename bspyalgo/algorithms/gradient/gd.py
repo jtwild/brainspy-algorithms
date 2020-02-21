@@ -3,11 +3,10 @@ import torch
 import os
 from tqdm import trange
 from bspyproc.bspyproc import get_processor
-from bspyalgo.utils.io import save, create_directory_timestamp
+from bspyalgo.utils.io import save, create_directory, create_directory_timestamp
 from bspyalgo.algorithms.gradient.core.data import GDData
 from bspyalgo.algorithms.gradient.core.optim import get_optimizer
 from bspyalgo.algorithms.gradient.core.losses import choose_loss_function
-import matplotlib.pyplot as plt  # For live plotting the current results.
 
 
 class GD:
@@ -18,15 +17,27 @@ class GD:
     @author: hruiz
     """
 
-    def __init__(self, configs, loss_fn=torch.nn.MSELoss()):
+    def __init__(self, configs, loss_fn=torch.nn.MSELoss(), is_main=False):
         self.configs = configs
+        self.is_main = is_main
         self.hyperparams = configs["hyperparameters"]
-
+        
         if 'loss_function' in self.hyperparams.keys():
             self.loss_fn = choose_loss_function(self.hyperparams['loss_function'])
         else:
             self.loss_fn = loss_fn
         self.init_processor()
+
+    def init_dirs(self, base_dir):
+        if self.is_main:
+            base_dir = create_directory_timestamp(base_dir,'gradient_descent_data')
+        else:
+            base_dir = os.path.join(base_dir, 'gradient_descent_data')
+            create_directory(base_dir)
+        self.default_output_dir = os.path.join(base_dir,'reproducibility')
+        create_directory(self.default_output_dir)
+        self.default_checkpoints_dir = os.path.join(base_dir,'checkpoints')
+        create_directory(self.default_checkpoints_dir)
 
     def init_processor(self):
         self.processor = get_processor(self.configs["processor"])
@@ -59,19 +70,16 @@ class GD:
 
 # TODO: Implement feeding the validation_data and mask as optional kwargs
 
-    def optimize(self, inputs, targets=None, validation_data=(None, None), data_info=None, mask=None):
+    def optimize(self, inputs, targets, validation_data=(None, None), data_info=None, mask=None, save_data=True):
         """Wraps trainer function in sgd_torch for use in algorithm_manager.
         """
-        assert isinstance(inputs, torch.Tensor), f"Inputs must be torch.Tensor, they are {type(inputs)}"
-        if targets != None:
-            assert isinstance(targets, torch.Tensor), f"Targets must be torch.Tensor, they are {type(targets)}"
-
+        assert isinstance(inputs, torch.Tensor), f"Inputs must be torch.tensor, they are {type(inputs)}"
+        assert isinstance(targets, torch.Tensor), f"Targets must be torch.tensor, they are {type(targets)}"
+        if save_data:
+            self.init_dirs(self.configs['results_base_dir'])
         self.reset()
         if data_info is not None:
             self.processor.info['data_info'] = data_info
-        # If targets==None, this will be passed tyo GDData, who will then ignore it.
-        # Also, the targets=None will be propegated upto the loss function, which will know what to with it in case
-        # it is sigmoid_distance. Otherwise, cannot be done and errors will arises.
         data = GDData(inputs, targets, self.hyperparams['nr_epochs'], self.processor, validation_data, mask=mask)
         
         if validation_data[0] is not None and validation_data[1] is not None:
@@ -79,9 +87,10 @@ class GD:
         else:
             data = self.sgd_train_without_validation(data)
 
-        if save_dir:
-            save('configs', save_dir, f'configs.json', timestamp=False, data=self.configs)
-            save('torch', save_dir, 'trained_network.pt', timestamp=False, data=self.processor)
+        if save_data:
+            save('configs', file_path=os.path.join(self.default_output_dir, 'configs.json'), data=self.configs)
+            save('torch', file_path=os.path.join(self.default_output_dir, 'model.pt'), data=self.processor)
+            save(mode='pickle', file_path=os.path.join(self.default_output_dir, 'results.pickle'), data=data.results)
         return data
 
     def sgd_train_with_validation(self, data):
@@ -97,7 +106,7 @@ class GD:
             data.results['performance_history'][epoch, 0], prediction_training = self.evaluate_training_error(x_val, x_train, y_train)
             data.results['performance_history'][epoch, 1], prediction_validation = self.evaluate_validation_error(x_val, y_val)
             if (epoch + 1) % self.configs['checkpoints']['save_interval'] == 0:
-                save('torch', self.configs['checkpoints']['save_dir'], f'checkpoint_epoch{epoch}.pt', data=self.processor)
+                save('torch', self.default_checkpoints_dir, f'checkpoint_epoch{epoch}.pt', data=self.processor)
         #    if epoch % self.hyperparams['save_interval'] == 0:
             training_error = data.results['performance_history'][epoch, 0]
             validation_error = data.results['performance_history'][epoch, 1]
@@ -114,29 +123,6 @@ class GD:
         x_train = data.results['inputs']
         y_train = data.results['targets']
         looper = trange(self.hyperparams['nr_epochs'], desc='Initialising')
-
-        # Initialize live plot if required:
-        if 'live_plot' in self.configs['checkpoints']:
-            prediction = self.processor(data.results['inputs'])
-            if self.configs['checkpoints']['live_plot'] is True:
-                fig, axs = plt.subplots(1,2, sharey=False)
-
-                output_line = axs[0].plot( torch.zeros_like(prediction), prediction.detach().numpy(),  marker="_", linestyle='None')[0]
-                loss_line = axs[1].plot( 0,0 )[0]
-
-                axs[0].set_ylabel('Output curent (nA)')
-                axs[1].set_ylabel('Loss')
-                axs[1].set_xlabel('Epoch')
-                fig.suptitle('Live training plot')
-                axs[0].grid(which='major')
-                axs[1].grid(which='major')
-                fig.canvas.draw()
-
-                # Set as topmost figure. Does not seem to work reliable.
-                fig.canvas.manager.window.activateWindow()
-                fig.canvas.manager.window.raise_()
-
-        # Start training loop
         for epoch in looper:
             # self.processor.train()
             self.train_step(x_train, y_train)
@@ -145,7 +131,7 @@ class GD:
                 prediction = self.processor(data.results['inputs'])
                 data.results['performance_history'][epoch] = self.loss_fn(prediction, y_train).item()  # data.results['targets']).item()
             if self.configs['checkpoints']['use_checkpoints'] is True and ((epoch + 1) % self.configs['checkpoints']['save_interval'] == 0):
-                save('torch', self.configs['checkpoints']['save_dir'], f'checkpoint_epoch{epoch}.pt', data=self.processor)
+                save('torch', self.default_checkpoint_dir, f'checkpoint_epoch{epoch}.pt', data=self.processor)
             # if epoch % self.hyperparams['save_interval'] == 0:
             error = data.results['performance_history'][epoch]
             description = ' Epoch: ' + str(epoch) + ' Training Error:' + str(error)
@@ -153,22 +139,6 @@ class GD:
             if error <= self.hyperparams['stop_threshold']:
                 print(f"Reached threshold error {self.hyperparams['stop_threshold']}. Stopping")
                 break
-            if 'live_plot' in self.configs['checkpoints']:
-                if self.configs['checkpoints']['live_plot'] is True and ( (epoch+1) % self.configs['checkpoints']['live_plot_interval'] ) == 0:
-                    # Update data
-                    loss_line.set_data(range(len(data.results['performance_history'][0:epoch])), data.results['performance_history'][0:epoch])
-                    output_line.set_ydata(prediction.detach().numpy())
-
-                    # Rescale axes
-                    axs[0].relim()
-                    axs[0].autoscale_view(True,True,True)
-                    axs[1].relim()
-                    axs[1].autoscale_view(True,True,True)
-
-                    # Update plots
-                    fig.canvas.draw()
-                    fig.canvas.flush_events()
-                    #plt.pause(self.configs['checkpoints']['live_plot_delay'])
         data.set_result_as_numpy('best_output', prediction)
         return data
 
@@ -184,12 +154,7 @@ class GD:
         x_mb = x_train[indices]
         y_pred = self.processor(x_mb)
 
-        if y_train is not None:
-            loss = self.loss_function(y_pred, y_train[indices])
-        else:
-            # If y_train is none, we have no predefined outputs and call a loss function which also does not have this.
-            # This will break if the combination loss_fn <-> defined targets  is wrong.
-            loss = self.loss_function(y_pred, None)
+        loss = self.loss_function(y_pred, y_train[indices])
 
         self.optimizer.zero_grad()
         loss.backward()
