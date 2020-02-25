@@ -4,12 +4,14 @@ from bspyalgo.utils.performance import corr_coeff
 
 class GAData:
     def __init__(self, inputs, targets, mask, hyperparams):  # , waveform_configs):
-        assert len(inputs) == len(targets), f'No. of input data {len(inputs)} does not match no. of targets {len(targets)}'
+        if targets != None:
+            # If targets are supplied
+            assert len(inputs) == len(targets), f'No. of input data {len(inputs)} does not match no. of targets {len(targets)}'
         self.results = {}
         self.results['inputs'] = inputs
         self.results['targets'] = targets
         if mask is None or len(mask) <= 1:
-            mask = np.ones(targets.shape[0], dtype=bool)
+            mask = np.ones(inputs.shape[0], dtype=bool)
         self.results['mask'] = mask
         self.reset(hyperparams)
 

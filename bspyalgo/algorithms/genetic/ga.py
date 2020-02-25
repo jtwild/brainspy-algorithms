@@ -128,10 +128,10 @@ class GA:
 # %% Method implementing evolution
 # TODO: Implement feeding the validation_data and mask as optional kwargs
 
-    def optimize(self, inputs, targets, validation_data=(None, None), mask=None, save_data=True):
+    def optimize(self, inputs, targets=None, validation_data=(None, None), mask=None, save_data=True):
         '''
             inputs = The inputs of the algorithm. They need to be in numpy. The GA also requires the input to be a waveform.
-            targets = The targets to which the algorithm will try to fit the inputs. They need to be in numpy.
+            targets = The targets to which the algorithm will try to fit the inputs. They need to be in numpy. Targets can be optional with certain fitness functions.
             validation_data = In some cases, it is required to provide the validation data in the form of (training_data, validation_data)
             mask = In cases where the input is a waveform, the mask helps filtering the slopes of the waveform
         '''

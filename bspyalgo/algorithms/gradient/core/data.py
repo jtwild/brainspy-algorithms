@@ -17,7 +17,7 @@ class GDData:
         self.results['processor'] = processor
         if mask is None or len(mask) <= 1:
             #TODO: Check if len(inputs) can be used. This used to be targets.shape[0]
-            mask = np.ones(len(inputs), dtype=bool)
+            mask = np.ones(inputs.shape[0], dtype=bool)
         self.results['mask'] = mask
         if validation_data[0] is not None and validation_data[1] is not None:
             assert len(validation_data[0]) == len(validation_data[1]), f'No. of validation input data {len(validation_data[0])} does not match no. of validation targets {len(validation_data[1])}'
