@@ -21,28 +21,29 @@ class GD:
         self.configs = configs
         self.is_main = is_main
         self.hyperparams = configs["hyperparameters"]
-        
+
         if 'loss_function' in self.hyperparams.keys():
             self.loss_fn = choose_loss_function(self.hyperparams['loss_function'])
         else:
             self.loss_fn = loss_fn
+
         self.init_processor()
 
     def init_dirs(self, base_dir):
         if self.is_main:
-            base_dir = create_directory_timestamp(base_dir,'gradient_descent_data')
+            base_dir = create_directory_timestamp(base_dir, 'gradient_descent_data')
         else:
             base_dir = os.path.join(base_dir, 'gradient_descent_data')
             create_directory(base_dir)
-        self.default_output_dir = os.path.join(base_dir,'reproducibility')
+        self.default_output_dir = os.path.join(base_dir, 'reproducibility')
         create_directory(self.default_output_dir)
-        self.default_checkpoints_dir = os.path.join(base_dir,'checkpoints')
+        self.default_checkpoints_dir = os.path.join(base_dir, 'checkpoints')
         create_directory(self.default_checkpoints_dir)
 
     def init_processor(self):
         self.processor = get_processor(self.configs["processor"])
 
-        self.load_configs()
+        self.init_optimizer()
         if 'regularizer' in dir(self.processor):
             self.loss_function = self.loss_with_regularizer
         else:
@@ -52,15 +53,6 @@ class GD:
         self.init_optimizer()
         self.processor.reset()
 
-    def load_configs(self):
-
-        # set configurations
-        if "seed" in self.hyperparams.keys():
-            torch.manual_seed(self.hyperparams['seed'])
-            print('The torch RNG is seeded with ', self.hyperparams['seed'])
-
-        self.init_optimizer()
-
     def init_optimizer(self):
         self.optimizer = get_optimizer(filter(lambda p: p.requires_grad, self.processor.parameters()), self.hyperparams)
 
@@ -69,6 +61,7 @@ class GD:
 
 
 # TODO: Implement feeding the validation_data and mask as optional kwargs
+
 
     def optimize(self, inputs, targets, validation_data=(None, None), data_info=None, mask=None, save_data=True):
         """Wraps trainer function in sgd_torch for use in algorithm_manager.
@@ -81,7 +74,7 @@ class GD:
         if data_info is not None:
             self.processor.info['data_info'] = data_info
         data = GDData(inputs, targets, self.hyperparams['nr_epochs'], self.processor, validation_data, mask=mask)
-        
+
         if validation_data[0] is not None and validation_data[1] is not None:
             data = self.sgd_train_with_validation(data)
         else:
