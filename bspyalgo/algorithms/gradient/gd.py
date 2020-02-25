@@ -68,9 +68,13 @@ class GD:
         """
         assert isinstance(inputs, torch.Tensor), f"Inputs must be torch.tensor, they are {type(inputs)}"
         assert isinstance(targets, torch.Tensor), f"Targets must be torch.tensor, they are {type(targets)}"
+
         if save_data:
             self.init_dirs(self.configs['results_base_dir'])
+        if self.processor.configs['debug'] and self.processor.configs['architecture'] == 'device_architecture':
+                self.processor.init_dirs(self.configs['results_base_dir'])
         self.reset()
+
         if data_info is not None:
             self.processor.info['data_info'] = data_info
         data = GDData(inputs, targets, self.hyperparams['nr_epochs'], self.processor, validation_data, mask=mask)
