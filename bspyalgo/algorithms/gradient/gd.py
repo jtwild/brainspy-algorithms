@@ -1,4 +1,4 @@
-# TODO: ''' '''
+# TODO: Put live plot inside a function, such that it can also be called by other files.
 import torch
 import os
 from tqdm import trange
@@ -149,6 +149,9 @@ class GD:
                 # Set as topmost figure. Does not seem to work reliable.
                 fig.canvas.manager.window.activateWindow()
                 fig.canvas.manager.window.raise_()
+                print('Pausing 5 seconds for recording. Disable via gd.py')
+                plt.pause(5)  # Pause a few seconds to enable recording.
+
 
         # Start training loop
         for epoch in looper:

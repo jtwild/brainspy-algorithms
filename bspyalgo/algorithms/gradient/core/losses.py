@@ -19,6 +19,8 @@ def choose_loss_function(loss_fn_name):
     # Below is the sigmoid_distance loss function used to train outputs far away from each other
     elif loss_fn_name == 'sigmoid_distance':
         return sigmoid_distance
+    elif loss_fn_name == 'entropy':
+        return entropy
     else:
         raise NotImplementedError(f"Loss function {loss_fn_name} is not recognized!")
 
@@ -75,6 +77,7 @@ def fisher_multipled_corr(output, target):
     return (1 - corr) * (s0 + s1) / mean_separation
 
 
+# Loss functions below are added by Jochem specifically for the patch filter. They do not require targets.
 def sigmoid_distance(outputs, target=None):
     # Sigmoid distance: a squeshed version of a sum of all internal distances between points.
     if target != None:
@@ -84,10 +87,40 @@ def sigmoid_distance(outputs, target=None):
     # The diagonal will all have distance zero, which puts all values of 0.5 on the diagonal and causes a offset, but offsets are not a problem
     # The sigmoid is shifted 0.5 downwards to set its zero point correctly. Onyl positive values are used in its argument.
     #TODO: Scale the sigmoid to prefer sepeartion upto... X nA.
-    return -1*torch.mean( torch.sigmoid( torch.abs(outputs - outputs.T) /5 ) - 0.5 )
+    scale = outputs.max() - outputs.min()  # normalizing scale, to prevent promotion of complete outward descent.
+    return -1*torch.mean( torch.sigmoid( torch.abs( (outputs - outputs.T) / scale)  *5 ) - 0.5 ) -torch.sigmoid( scale/100 )
+
     #return torch.mean( torch.tanh( 1/ (torch.abs(outputs - outputs.T) +1e-10/2) ) )
     #return torch.zeros(1)
 
+def entropy(outputs, target=None):
+    # Entropy E of a set of points S:
+    # E(S) = sum_{all x element of S} P(x) * -log2(P(x))
+    # Entropy is maximized by an even distribution.
+    # Warning: scaling the output in the sigmoid_distance loss functions had unwanted results: current range was reduced drasitcally.
+    # The edge points have badly defined nearest neighbours, so for the two edgepoints, the single closest neighbour is taken twice.
+    outputs_sorted = outputs.sort(dim=0)[0]  # we need the sorted array for adjacent points.
+    dist = torch.abs((outputs_sorted - outputs_sorted.T))
+
+    # Now we need the values next to the diagonal, to determine the intervals. Edge points have only a single determined closest neighbour
+    # For selection, we build an index array
+    indices = [[], []]
+    indices[0].append([0, 0])  # first edge point
+    indices[1].append([1, 1])  # first edge point gets twice single neighbour
+    for i in range(1, len(outputs_sorted)-1):
+        indices[0].append([i, i])  # select row
+        indices[1].append([i-1, i+1])  # select columns, next to diagonal.
+    i+=1  # for the last edge point
+    indices[0].append([i,i]) # the last edge point
+    indices[1].append([i-1,i-1])  # twice the same value.
+
+    # Determine intervals sepearint points.
+    interval = torch.sum(dist[indices], dim=1, keepdims=True)  # relative interval between ajacent neihbour points. Should add to one.
+    # Normalize to one, for the entropy calculation
+    interval_norm = interval / torch.sum(interval, dim=0, keepdims=True)
+    entropy = torch.sum( -interval_norm * torch.log(interval_norm) )
+    # We want to maximize entropy, so minimize -1*entropy
+    return -entropy
 
 #  Testing a specific loss function
 if __name__ == '__main__':
