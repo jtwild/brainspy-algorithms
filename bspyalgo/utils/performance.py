@@ -10,6 +10,7 @@ import numpy as np
 import torch.nn as nn
 import torch
 
+from tqdm import trange
 
 def decision(data, targets, lrn_rate=0.007, max_iters=100, validation=False, verbose=True):
 
@@ -34,7 +35,8 @@ def decision(data, targets, lrn_rate=0.007, max_iters=100, validation=False, ver
     loss = torch.nn.BCEWithLogitsLoss()
     optimizer = torch.optim.SGD(node.parameters(), lr=lrn_rate)
     best_accuracy = -1
-    for epoch in range(max_iters):
+    looper = trange(max_iters, desc='Calculating accuracy')
+    for epoch in looper:
         shuffle_data = torch.randperm(len(x_train))
         # TODO: add batcher
         for x_i, t_i in zip(x_train[shuffle_data], t_train[shuffle_data]):
@@ -55,7 +57,7 @@ def decision(data, targets, lrn_rate=0.007, max_iters=100, validation=False, ver
                     decision_boundary = -b / w
                     predicted_class = node(torch.tensor(data)).detach().numpy() > 0.
         if verbose:
-            print(f'Epoch: {epoch}  Accuracy {acc}, loss: {cost.item()}')
+            looper.set_description(f' Epoch: {epoch}  Accuracy {acc}, loss: {cost.item()}')
 
     return best_accuracy, predicted_class, decision_boundary
 
