@@ -7,6 +7,56 @@ Created on Fri Jun  1 11:42:27 2018
 """
 
 import numpy as np
+import torch.nn as nn
+import torch
+
+
+def decision(data, targets, lrn_rate=0.007, max_iters=100, validation=False):
+
+    if validation:
+        n_total = len(data)
+        assert n_total > 10, "Not enough data, we assume you have at least 10 points"
+        n_val = int(n_total * 0.1)
+        shuffle = np.random.permutation(n_total)
+        indices_train = shuffle[n_val:]
+        indices_val = shuffle[:n_val]
+        x_train = torch.tensor(data[indices_train])
+        t_train = torch.tensor(targets[indices_train])
+        x_val = torch.tensor(data[indices_val])
+        t_val = torch.tensor(targets[indices_val])
+    else:
+        x_train = torch.tensor(data)
+        t_train = torch.tensor(targets)
+        x_val = torch.tensor(data)
+        t_val = torch.tensor(targets)
+
+    node = nn.Linear(1, 1)
+    loss = torch.nn.BCEWithLogitsLoss()
+    optimizer = torch.optim.SGD(node.parameters(), lr=lrn_rate)
+    best_accuracy = -1
+    for epoch in range(max_iters):
+        shuffle_data = torch.randperm(len(x_train))
+        # TODO: add batcher
+        for x_i, t_i in zip(x_train[shuffle_data], t_train[shuffle_data]):
+            optimizer.zero_grad()
+            y_i = node(x_i)
+            cost = loss(y_i, t_i)
+            cost.backward()
+            optimizer.step()
+        with torch.no_grad():
+            y = node(x_val)
+            labels = y > 0.
+            correct_labeled = torch.sum(labels == t_val).detach().numpy()
+            acc = 100. * correct_labeled / len(t_val)
+            if acc > best_accuracy:
+                best_accuracy = acc
+                with torch.no_grad():
+                    w, b = [p.detach().numpy() for p in node.parameters()]
+                    decision_boundary = -b / w
+                    predicted_class = node(torch.tensor(data)).detach().numpy() > 0.
+        print(f'Epoch: {epoch}  Accuracy {acc}, loss: {cost.item()}')
+
+    return best_accuracy, predicted_class, decision_boundary
 
 
 def perceptron(input_waveform, target_waveform, tolerance=0.01, max_iter=200):
@@ -71,32 +121,21 @@ def accuracy(best_output, target_waveforms, mask):
 
 if __name__ == '__main__':
     from matplotlib import pyplot as plt
-    # XOR as target_waveform
-    target_waveform = np.zeros((800, 1))
-    target_waveform[200:600] = 1
+    import pickle as pkl
 
-    # Create wave form
-    noise = 0.05
-    output = np.zeros((800, 1))
-    output[200:600] = 1  # XOR
-#    output[600:] = 1.75
-    input_waveform = output + noise * np.random.randn(len(target_waveform), 1)
-
-    accuracy, weights, predicted = perceptron(input_waveform, target_waveform)
+    data_dict = pkl.load(open("tmp/input/best_output_ring_example.pkl", 'rb'))
+    data = data_dict['best_output']
+    targets = np.zeros_like(data)
+    targets[int(len(data) / 2):] = 1
+    data = (data - np.mean(data, axis=0)) / np.std(data, axis=0)
+    accuracy, predicted_labels, threshold = decision(data, targets, validation=False)
 
     plt.figure()
-    plt.plot(target_waveform)
-    plt.plot(input_waveform, '.')
-    plt.plot(np.arange(len(target_waveform)), (-weights[0] / weights[1]) * np.ones_like(target_waveform))
-    plt.plot(predicted[0], predicted[1], 'xk')
-    plt.show()
-
-    nr_examples = 100
-    accuracy = np.zeros((nr_examples,))
-    for l in range(nr_examples):
-        accuracy[l], weights, _ = perceptron(input_waveform, target_waveform)
-        print(f'Prediction Accuracy: {accuracy[l]} and weights:{weights}')
-
-    plt.figure()
-    plt.hist(accuracy, 100)
+    plt.title(f'Accuracy: {accuracy:.2f} %')
+    plt.plot(data, label='Norm. Data')
+    plt.plot(predicted_labels, '.', label='Predicted labels')
+    plt.plot(targets, 'g', label='Targets')
+    plt.plot(np.arange(len(predicted_labels)),
+             np.ones_like(predicted_labels) * threshold, 'k:', label='Threshold')
+    plt.legend()
     plt.show()
