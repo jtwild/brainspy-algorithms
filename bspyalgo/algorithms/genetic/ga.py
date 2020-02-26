@@ -99,7 +99,6 @@ class GA:
         self.partition = configs['partition']   # Partitions of population
 
         # self.mutationrate = configs['mutationrate']
-        self.seed = configs['seed']
         self.generations = configs['epochs']
 
         self.genes = len(self.generange)
@@ -136,7 +135,7 @@ class GA:
             mask = In cases where the input is a waveform, the mask helps filtering the slopes of the waveform
         '''
 
-        np.random.seed(seed=self.seed)
+        # np.random.seed(seed=self.seed)
         if (validation_data[0] is not None) and (validation_data[1] is not None):
             print('======= WARNING: Validation data is not processed in GA =======')
 
@@ -313,7 +312,6 @@ class GA:
         Mutate all genes but the first partition[0] with a triangular
         distribution in generange with mode=gene to be mutated.
         '''
-        np.random.seed(seed=None)
         mask = np.random.choice([0, 1], size=self.pool[self.partition[0]:].shape,
                                 p=[1 - self.mutationrate, self.mutationrate])
         mutatedpool = np.zeros((self.genomes - self.partition[0], self.genes))
@@ -326,7 +324,6 @@ class GA:
         self.newpool[self.partition[0]:] = ((np.ones(self.newpool[self.partition[0]:].shape) - mask) * self.newpool[self.partition[0]:] + mask * mutatedpool)
 
     def remove_duplicates(self):
-        np.random.seed(seed=None)
         '''
         Check the entire pool for any duplicate genomes and replace them by
         the genome put through a triangular distribution
