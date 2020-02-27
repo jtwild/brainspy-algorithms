@@ -5,7 +5,7 @@ Created on Fri Jun  1 11:42:27 2018
 
 @author: hruiz
 """
-
+from __future__ import generator_stop
 import numpy as np
 import torch.nn as nn
 import torch
@@ -17,10 +17,13 @@ from tqdm import trange
 def batch_generator(nr_samples, batch):
     batches = grouper(np.random.permutation(nr_samples), batch)
     while True:
-        indices = list(next(batches))
-        if None in indices:
-            indices = [index for index in indices if index is not None]
-        yield torch.tensor(indices, dtype=torch.int64)
+        try:
+            indices = list(next(batches))
+            if None in indices:
+                indices = [index for index in indices if index is not None]
+            yield torch.tensor(indices, dtype=torch.int64)
+        except StopIteration:
+            return
 
 
 def decision(data, targets, lrn_rate=0.007, mini_batch=8, max_iters=100, validation=False, verbose=True):
