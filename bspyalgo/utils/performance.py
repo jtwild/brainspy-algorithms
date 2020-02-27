@@ -10,10 +10,20 @@ import numpy as np
 import torch.nn as nn
 import torch
 from matplotlib import pyplot as plt
+from more_itertools import grouper
 from tqdm import trange
 
 
-def decision(data, targets, lrn_rate=0.007, max_iters=100, validation=False, verbose=True):
+def batch_generator(nr_samples, batch):
+    batches = grouper(np.random.permutation(nr_samples), batch)
+    while True:
+        indices = list(next(batches))
+        if None in indices:
+            indices = [index for index in indices if index is not None]
+        yield torch.tensor(indices, dtype=torch.int64)
+
+
+def decision(data, targets, lrn_rate=0.007, mini_batch=8, max_iters=100, validation=False, verbose=True):
 
     if validation:
         n_total = len(data)
@@ -34,13 +44,12 @@ def decision(data, targets, lrn_rate=0.007, max_iters=100, validation=False, ver
 
     node = nn.Linear(1, 1)
     loss = torch.nn.BCEWithLogitsLoss()
-    optimizer = torch.optim.SGD(node.parameters(), lr=lrn_rate)
+    optimizer = torch.optim.Adam(node.parameters(), lr=lrn_rate, betas=(0.999, 0.999))
     best_accuracy = -1
     looper = trange(max_iters, desc='Calculating accuracy')
     for epoch in looper:
-        shuffle_data = torch.randperm(len(x_train))
-        # TODO: add batcher
-        for x_i, t_i in zip(x_train[shuffle_data], t_train[shuffle_data]):
+        for mb in batch_generator(len(x_train), mini_batch):
+            x_i, t_i = x_train[mb], t_train[mb]
             optimizer.zero_grad()
             y_i = node(x_i)
             cost = loss(y_i, t_i)
@@ -115,5 +124,5 @@ if __name__ == '__main__':
     ACCURACY, LABELS, THRESHOLD = perceptron(BEST_OUTPUT, TARGETS, plot='show')
 
     MASK = np.ones_like(TARGETS, dtype=bool)
-    ACC = accuracy(BEST_OUTPUT, TARGETS, MASK)
-    print('Accuracy for best output: {ACC}')
+    ACC = accuracy(BEST_OUTPUT, TARGETS)
+    print(f'Accuracy for best output: {ACC}')
