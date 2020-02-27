@@ -9,8 +9,9 @@ Created on Fri Jun  1 11:42:27 2018
 import numpy as np
 import torch.nn as nn
 import torch
-
+from matplotlib import pyplot as plt
 from tqdm import trange
+
 
 def decision(data, targets, lrn_rate=0.007, max_iters=100, validation=False, verbose=True):
 
@@ -66,7 +67,7 @@ def perceptron(input_waveform, target_waveform, plot=None):
     # Assumes that the input_waveform and the target_waveform have the shape (n_total,1)
     # Normalizes the data; it is assumed that the target_waveform has binary values
     input_waveform = (input_waveform - np.mean(input_waveform, axis=0)) / np.std(input_waveform, axis=0)
-    _accuracy, predicted_labels, threshold = decision(input_waveform, target_waveform, verbose=False)
+    _accuracy, predicted_labels, threshold = decision(input_waveform, target_waveform)
     if plot:
         plt.figure()
         plt.title(f'Accuracy: {_accuracy:.2f} %')
@@ -90,15 +91,21 @@ def corr_coeff(x, y):
 # TODO: use data object to get the accuracy (see corr_coeff above)
 
 
-def accuracy(best_output, target_waveforms, mask):
-    y = best_output[mask][:, np.newaxis]
-    trgt = target_waveforms[mask][:, np.newaxis]
-    acc, _, _ = perceptron(y, trgt)
+def accuracy(best_output, target_waveforms, plot=None):
+    if len(best_output.shape) == 1:
+        y = best_output[:, np.newaxis]
+    else:
+        y = best_output
+    if len(target_waveforms.shape) == 1:
+        trgt = target_waveforms[:, np.newaxis]
+    else:
+        trgt = target_waveforms
+    acc, _, _ = perceptron(y, trgt, plot=plot)
     return acc
 
 
 if __name__ == '__main__':
-    from matplotlib import pyplot as plt
+
     import pickle as pkl
 
     data_dict = pkl.load(open("tmp/input/best_output_ring_example.pkl", 'rb'))
