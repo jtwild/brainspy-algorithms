@@ -62,7 +62,6 @@ class GD:
 
 # TODO: Implement feeding the validation_data and mask as optional kwargs
 
-
     def optimize(self, inputs, targets, validation_data=(None, None), data_info=None, mask=None, save_data=True):
         """Wraps trainer function in sgd_torch for use in algorithm_manager.
         """
@@ -71,8 +70,8 @@ class GD:
 
         if save_data:
             self.init_dirs(self.configs['results_base_dir'])
-        if self.processor.configs['debug'] and self.processor.configs['architecture'] == 'device_architecture':
-                self.processor.init_dirs(self.configs['results_base_dir'])
+        if 'debug' in self.processor.configs and self.processor.configs['debug'] and self.processor.configs['architecture'] == 'device_architecture':
+            self.processor.init_dirs(self.configs['results_base_dir'])
         self.reset()
 
         if data_info is not None:
