@@ -21,7 +21,6 @@ class GD:
         self.configs = configs
         self.is_main = is_main
         self.hyperparams = configs["hyperparameters"]
-
         if 'loss_function' in self.hyperparams.keys():
             self.loss_fn = choose_loss_function(self.hyperparams['loss_function'])
         else:
@@ -30,10 +29,14 @@ class GD:
         self.init_processor()
 
     def init_dirs(self, base_dir):
-        if self.is_main:
-            base_dir = create_directory_timestamp(base_dir, 'gradient_descent_data')
+        if 'experiment_name' in self.configs:
+            main_folder_name = self.configs['experiment_name']
         else:
-            base_dir = os.path.join(base_dir, 'gradient_descent_data')
+            main_folder_name = 'gradient_descent_data'
+        if self.is_main:
+            base_dir = create_directory_timestamp(base_dir, main_folder_name)
+        else:
+            base_dir = os.path.join(base_dir, main_folder_name)
             create_directory(base_dir)
         self.default_output_dir = os.path.join(base_dir, 'reproducibility')
         create_directory(self.default_output_dir)

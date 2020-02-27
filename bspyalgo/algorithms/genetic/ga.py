@@ -67,10 +67,14 @@ class GA:
             self.init_dirs(configs['results_base_dir'], is_main)
 
     def init_dirs(self, base_dir, is_main=False):
-        if is_main:
-            base_dir = create_directory_timestamp(base_dir,'genetic_algorithm_data')
+        if 'experiment_name' in self.configs:
+            main_folder_name = self.configs['experiment_name']
         else:
-            base_dir = os.path.join(base_dir, 'genetic_algorithm_data')
+            main_folder_name = 'genetic_algorithm_data'
+        if is_main:
+            base_dir = create_directory_timestamp(base_dir,main_folder_name)
+        else:
+            base_dir = os.path.join(base_dir, main_folder_name)
             create_directory(base_dir)
         self.default_output_dir = os.path.join(base_dir, 'reproducibility')
         create_directory(self.default_output_dir)
