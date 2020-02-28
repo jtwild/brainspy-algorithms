@@ -38,6 +38,7 @@ class GD:
         else:
             base_dir = os.path.join(base_dir, main_folder_name)
             create_directory(base_dir)
+        self.base_dir = base_dir
         self.default_output_dir = os.path.join(base_dir, 'reproducibility')
         create_directory(self.default_output_dir)
         self.default_checkpoints_dir = os.path.join(base_dir, 'checkpoints')
@@ -179,7 +180,3 @@ class GD:
 
     def save_smg_configs_dict(self):
         self.processor.info['smg_configs'] = self.configs
-
-    def save_model_mse(self, mse, save_dir):
-        self.processor.info['data_info']['mse'] = mse
-        save('torch', save_dir, 'trained_network.pt', timestamp=False, data=self.processor)
