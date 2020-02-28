@@ -91,7 +91,7 @@ def sigmoid_distance(outputs, target=None):
     #TODO: Scale the sigmoid to prefer sepeartion upto... X nA.
     #scale = outputs.max() - outputs.min()  # normalizing scale, to prevent promotion of complete outward descent.
     #return -1*torch.mean( torch.sigmoid( torch.abs( (outputs - outputs.T) / scale)  *5 ) - 0.5 ) -torch.sigmoid( scale/100 )
-    return -1*torch.mean( torch.sigmoid( torch.abs( (outputs - outputs.T) / 5 ) - 0.5 ) )
+    return -1*torch.mean( torch.sigmoid( torch.abs( (outputs - outputs.T) / 2 ) - 0.5 ) )
     #return torch.mean( torch.tanh( 1/ (torch.abs(outputs - outputs.T) +1e-10/2) ) )
     #return torch.zeros(1)
 
@@ -135,7 +135,7 @@ def entropy_distance(outputs, target=None):
         raise Warning('This loss function does not use target values. Target ignored.')
     interval, interval_norm = entropy(outputs, return_intervals=True)[1:]
     #TODO: update scaling of sigmoidu
-    return torch.mean( (torch.sigmoid(interval/3)-0.5) * interval_norm * torch.log(interval_norm))
+    return torch.mean( (torch.sigmoid(interval/2)-0.5) * interval_norm * torch.log(interval_norm))
 
 
 #  Testing a specific loss function
