@@ -101,6 +101,7 @@ def sigmoid_distance(outputs, target=None):
     # The sigmoid is shifted 0.5 downwards to set its zero point correctly. Onyl positive values are used in its argument.
     dist = torch.abs(outputs - outputs.T)
     np.fill_diagonal(dist, np.nan)  #such that this is ignored upon finding nearest neighbour distance
+    np.nanmax(dist, 1, keepdims=True) # gives nearest neighbour distance, but need both enarest neighbours
     raise Warning('Fix fitness function to only reflect nearest neighbours. ')
     #TODO: implemente Nearest neighbours only.
 

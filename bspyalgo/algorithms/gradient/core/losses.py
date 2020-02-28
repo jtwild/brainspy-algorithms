@@ -21,6 +21,8 @@ def choose_loss_function(loss_fn_name):
         return sigmoid_distance
     elif loss_fn_name == 'entropy':
         return entropy
+    elif loss_fn_name == 'entropy_distance':
+        return entropy_distance
     else:
         raise NotImplementedError(f"Loss function {loss_fn_name} is not recognized!")
 
@@ -87,13 +89,13 @@ def sigmoid_distance(outputs, target=None):
     # The diagonal will all have distance zero, which puts all values of 0.5 on the diagonal and causes a offset, but offsets are not a problem
     # The sigmoid is shifted 0.5 downwards to set its zero point correctly. Onyl positive values are used in its argument.
     #TODO: Scale the sigmoid to prefer sepeartion upto... X nA.
-    scale = outputs.max() - outputs.min()  # normalizing scale, to prevent promotion of complete outward descent.
-    return -1*torch.mean( torch.sigmoid( torch.abs( (outputs - outputs.T) / scale)  *5 ) - 0.5 ) -torch.sigmoid( scale/100 )
-
+    #scale = outputs.max() - outputs.min()  # normalizing scale, to prevent promotion of complete outward descent.
+    #return -1*torch.mean( torch.sigmoid( torch.abs( (outputs - outputs.T) / scale)  *5 ) - 0.5 ) -torch.sigmoid( scale/100 )
+    return -1*torch.mean( torch.sigmoid( torch.abs( (outputs - outputs.T) / 5 ) - 0.5 ) )
     #return torch.mean( torch.tanh( 1/ (torch.abs(outputs - outputs.T) +1e-10/2) ) )
     #return torch.zeros(1)
 
-def entropy(outputs, target=None):
+def entropy(outputs, target=None, return_intervals=False):
     # Entropy E of a set of points S:
     # E(S) = sum_{all x element of S} P(x) * -log2(P(x))
     # Entropy is maximized by an even distribution.
@@ -120,7 +122,21 @@ def entropy(outputs, target=None):
     interval_norm = interval / torch.sum(interval, dim=0, keepdims=True)
     entropy = torch.sum( -interval_norm * torch.log(interval_norm) )
     # We want to maximize entropy, so minimize -1*entropy
-    return -entropy
+    if return_intervals:
+        # This part is used by entropy_distance loss function
+        return -entropy, interval, interval_norm
+    else:
+        return -entropy
+
+def entropy_distance(outputs, target=None):
+    # A combination of entropy and sigmoid distance, all taken on the intervals. Multiplied which each other to promote both
+    # a large distance absolute and relative
+    if target != None:
+        raise Warning('This loss function does not use target values. Target ignored.')
+    interval, interval_norm = entropy(outputs, return_intervals=True)[1:]
+    #TODO: update scaling of sigmoidu
+    return torch.mean( (torch.sigmoid(interval/3)-0.5) * interval_norm * torch.log(interval_norm))
+
 
 #  Testing a specific loss function
 if __name__ == '__main__':

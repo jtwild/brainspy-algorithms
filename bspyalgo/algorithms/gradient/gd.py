@@ -86,7 +86,7 @@ class GD:
         # Also, the targets=None will be propegated upto the loss function, which will know what to with it in case
         # it is sigmoid_distance. Otherwise, cannot be done and errors will arises.
         data = GDData(inputs, targets, self.hyperparams['nr_epochs'], self.processor, validation_data, mask=mask)
-        
+
         if validation_data[0] is not None and validation_data[1] is not None:
             data = self.sgd_train_with_validation(data)
         else:
@@ -149,8 +149,8 @@ class GD:
                 # Set as topmost figure. Does not seem to work reliable.
                 fig.canvas.manager.window.activateWindow()
                 fig.canvas.manager.window.raise_()
-                print('Pausing 5 seconds for recording. Disable via gd.py')
-                plt.pause(5)  # Pause a few seconds to enable recording.
+                #print('Pausing 5 seconds for recording. Disable via gd.py')
+                #plt.pause(5)  # Pause a few seconds to enable recording.
 
 
         # Start training loop
@@ -170,6 +170,7 @@ class GD:
             if error <= self.hyperparams['stop_threshold']:
                 print(f"Reached threshold error {self.hyperparams['stop_threshold']}. Stopping")
                 break
+            # Update live plot of required:
             if 'live_plot' in self.configs['checkpoints']:
                 if self.configs['checkpoints']['live_plot'] is True and ( (epoch+1) % self.configs['checkpoints']['live_plot_interval'] ) == 0:
                     # Update data
