@@ -79,7 +79,9 @@ class GD:
         self.reset()
 
         if data_info is not None:
+            # This case is only used when using the GD for creating a new model
             self.processor.info['data_info'] = data_info
+            self.processor.info['smg_configs'] = self.configs
         data = GDData(inputs, targets, self.hyperparams['nr_epochs'], self.processor, validation_data, mask=mask)
 
         if validation_data[0] is not None and validation_data[1] is not None:
@@ -177,6 +179,3 @@ class GD:
             prediction = self.processor(x_sampled)
         target = y_train[get_indices]
         return self.loss_fn(prediction, target).item(), prediction
-
-    def save_smg_configs_dict(self):
-        self.processor.info['smg_configs'] = self.configs
