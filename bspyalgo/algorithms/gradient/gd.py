@@ -106,7 +106,7 @@ class GD:
             data.results['performance_history'][epoch, 0], prediction_training = self.evaluate_training_error(x_val, x_train, y_train)
             data.results['performance_history'][epoch, 1], prediction_validation = self.evaluate_validation_error(x_val, y_val)
             if (epoch + 1) % self.configs['checkpoints']['save_interval'] == 0:
-                save('torch', self.default_checkpoints_dir, f'checkpoint_epoch{epoch}.pt', data=self.processor)
+                save('torch', os.path.join(self.default_checkpoints_dir, f'checkpoint.pt'), data=self.processor)
         #    if epoch % self.hyperparams['save_interval'] == 0:
             training_error = data.results['performance_history'][epoch, 0]
             validation_error = data.results['performance_history'][epoch, 1]
