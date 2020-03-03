@@ -21,6 +21,10 @@ def choose_loss_function(loss_fn_name):
         return sigmoid_distance
     elif loss_fn_name == 'entropy':
         return entropy
+    elif loss_fn_name == 'entropy_abs':
+        return entropy_abs
+    elif loss_fn_name == 'entropy_hard_boundaries':
+        return entropy_hard_boundaries
     elif loss_fn_name == 'entropy_distance':
         return entropy_distance
     else:
@@ -127,6 +131,52 @@ def entropy(outputs, target=None, return_intervals=False):
         return -entropy, interval, interval_norm
     else:
         return -entropy
+
+def entropy_abs(outputs, target=None):
+    if target != None:
+        raise Warning('This loss function does not use target values. Target ignored.')
+    intervals = entropy(outputs, return_intervals = True)[1]
+    fixed_distance = 50     # Optimal results: I_i = I_fixed/ e
+    return torch.sum( intervals * torch.log(intervals) )
+
+def entropy_hard_boundaries(outputs, target = None, boundaries=[-100, 0], use_softmax = False):
+    if target != None:
+        raise Warning('This loss function does not use target values. Target ignored.')
+    # First we sort the output, and clip the output to a fixed interval.
+    outputs_sorted = outputs.sort(dim=0)[0]
+    outputs_clamped = outputs_sorted.clamp(boundaries[0], boundaries[1])
+
+    # THen we prepare two tensors which we subtract from each other to calculate nearest neighbour distances.
+    boundaries = torch.tensor( boundaries, dtype=outputs_sorted.dtype)
+    boundary_low = boundaries[0].unsqueeze(0).unsqueeze(1)
+    boundary_high = boundaries[1].unsqueeze(0).unsqueeze(1)
+    outputs_highside = torch.cat( (outputs_clamped, boundary_high), dim=0)
+    outputs_lowside = torch.cat( (boundary_low, outputs_clamped), dim=0)
+
+    # Most intervals are multiplied by 0.5 because they are shared between two neighbours
+    # The first and last interval do not get divided bu two because they are not shared
+    multiplier = 0.5*torch.ones_like(outputs_highside)
+    multiplier[0] = 1
+    multiplier[-1] = 1
+
+    # Determine the intervals between the points
+    dist = (outputs_highside - outputs_lowside) * multiplier
+    intervals = dist[1:] + dist[:-1]
+    #dist_lowside = (outputs_highside - outputs_lowside) * multiplier
+    #dist_highside = (outputs_lowside - outputs_highside) * multiplier
+    #intervals = dist_highside[1:] + dist_lowside[:-1]   # The last point of dist_high is useless, just like the first poiint of distance low.
+
+    if use_softmax:
+        #raise Warning('Softmax is not yet tested.')
+        return torch.sum( torch.nn.functional.softmax(intervals, dim=0) * torch.nn.functional.log_softmax(intervals, dim=0) )
+        #return torch.nn.functional.cross_entropy(intervals[:,0], intervals[:,0])
+    # WHat about torch.nn.functional.cross_entropy(input, target) with targe=input=intervals ? According to documentation, this combines log_softmax and nll_loss = negative log likelyhood
+    else:
+        intervals_norm = intervals / (boundary_high - boundary_low)  # boundary_high - boundary low determines the interval.
+        return torch.sum( intervals_norm * torch.log(intervals_norm+1e-10) )
+    #outputs_clipped = -torch.relu( -(torch.relu(outputs_sorted - boundary_low ) + boundary_low) + boundary_high ) + boundary_high
+    #outputs_w_boundaries = torch.cat( (boundary_low, outputs_sorted, boundary_high), dim=0)
+    #intervals = entropy(outputs_w_boundaries, return_intervals=True)[1] [1:-1] /
 
 def entropy_distance(outputs, target=None):
     # A combination of entropy and sigmoid distance, all taken on the intervals. Multiplied which each other to promote both

@@ -35,5 +35,6 @@ def get_adam(parameters, configs):
                                 )
 
     else:
+        print("Betas not defined in config file. Default beta values are used for Adam optimizer.")
         return optim.Adam(parameters,
                                 lr=configs['learning_rate'])
