@@ -31,13 +31,13 @@ class GDData:
 
     def judge(self):
         self.results['best_performance'] = self.results['performance_history'][-1]
-        if self.results['processor'].configs['platform'] == 'simulation' and self.results['processor'].configs['network_type'] == 'dnpu':
+        if self.results['processor'].configs['processor_type'] == 'dnpu':
             self.set_result_as_numpy('control_voltages', self.results['processor'].get_control_voltages())
 
     def get_results_as_numpy(self):
         numpy_results = {}
         for key in self.results.keys():
-            if  isinstance(self.results[key], torch.Tensor):
+            if isinstance(self.results[key], torch.Tensor):
                 numpy_results[key] = self.results[key].detach().cpu().numpy()
             else:
                 numpy_results[key] = self.results[key]
