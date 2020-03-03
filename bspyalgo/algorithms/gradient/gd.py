@@ -72,7 +72,7 @@ class GD:
         assert isinstance(inputs, torch.Tensor), f"Inputs must be torch.tensor, they are {type(inputs)}"
         assert isinstance(targets, torch.Tensor), f"Targets must be torch.tensor, they are {type(targets)}"
 
-        if save_data:
+        if save_data and 'results_base_dir' in self.configs['processor']['processor_type'] == 'dnpu':
             self.init_dirs(self.configs['results_base_dir'])
         if 'debug' in self.processor.configs and self.processor.configs['debug'] and self.processor.configs['architecture'] == 'device_architecture':
             self.processor.init_dirs(self.configs['results_base_dir'])
@@ -80,6 +80,8 @@ class GD:
 
         if data_info is not None:
             # This case is only used when using the GD for creating a new model
+            print('Using the Gradient Descent for Surrogate Model Generation.')
+            self.processor.info = {}
             self.processor.info['data_info'] = data_info
             self.processor.info['smg_configs'] = self.configs
         data = GDData(inputs, targets, self.hyperparams['nr_epochs'], self.processor, validation_data, mask=mask)
@@ -100,12 +102,12 @@ class GD:
         y_train = data.results['targets']
         x_val = data.results['inputs_val']
         y_val = data.results['targets_val']
-        looper = trange(self.hyperparams['nr_epochs'], desc='Initialising')
+        looper = trange(self.hyperparams['nr_epochs'], desc=' Initialising')
         for epoch in looper:
 
             self.train_step(x_train, y_train)
             # with torch.no_grad():
-            data.results['performance_history'][epoch, 0], prediction_training = self.evaluate_training_error(x_val, x_train, y_train)
+            data.results['performance_history'][epoch, 0], prediction_training, data.results['target_indices'] = self.evaluate_training_error(x_val, x_train, y_train)
             data.results['performance_history'][epoch, 1], prediction_validation = self.evaluate_validation_error(x_val, y_val)
             if (epoch + 1) % self.configs['checkpoints']['save_interval'] == 0:
                 save('torch', os.path.join(self.default_checkpoints_dir, f'checkpoint.pt'), data=self.processor)
@@ -133,7 +135,7 @@ class GD:
                 prediction = self.processor(data.results['inputs'])
                 data.results['performance_history'][epoch] = self.loss_fn(prediction, y_train).item()  # data.results['targets']).item()
             if self.configs['checkpoints']['use_checkpoints'] is True and ((epoch + 1) % self.configs['checkpoints']['save_interval'] == 0):
-                save('torch', self.default_checkpoint_dir, f'checkpoint_epoch{epoch}.pt', data=self.processor)
+                save('torch', os.path.join(self.default_checkpoints_dir, f'checkpoint.pt'), data=self.processor)
             # if epoch % self.hyperparams['save_interval'] == 0:
             error = data.results['performance_history'][epoch]
             description = ' Epoch: ' + str(epoch) + ' Training Error:' + str(error)
@@ -173,9 +175,9 @@ class GD:
         # Evaluate training error
         self.processor.eval()
         samples = len(x_val)
-        get_indices = torch.randperm(len(x_train))[:samples]
-        x_sampled = x_train[get_indices]
+        target_indices = torch.randperm(len(x_train))[:samples]
+        x_sampled = x_train[target_indices]
         with torch.no_grad():
             prediction = self.processor(x_sampled)
-        target = y_train[get_indices]
-        return self.loss_fn(prediction, target).item(), prediction
+        target = y_train[target_indices]
+        return self.loss_fn(prediction, target).item(), prediction, target_indices
