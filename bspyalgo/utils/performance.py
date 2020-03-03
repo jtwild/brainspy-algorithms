@@ -12,6 +12,7 @@ import torch
 from matplotlib import pyplot as plt
 from more_itertools import grouper
 from tqdm import trange
+from bspyproc.utils.pytorch import TorchUtils
 
 
 def batch_generator(nr_samples, batch):
@@ -35,17 +36,17 @@ def decision(data, targets, lrn_rate=0.007, mini_batch=8, max_iters=100, validat
         shuffle = np.random.permutation(n_total)
         indices_train = shuffle[n_val:]
         indices_val = shuffle[:n_val]
-        x_train = torch.tensor(data[indices_train])
-        t_train = torch.tensor(targets[indices_train])
-        x_val = torch.tensor(data[indices_val])
-        t_val = torch.tensor(targets[indices_val])
+        x_train = torch.tensor(data[indices_train], dtype=TorchUtils.data_type)
+        t_train = torch.tensor(targets[indices_train], dtype=TorchUtils.data_type)
+        x_val = torch.tensor(data[indices_val], dtype=TorchUtils.data_type)
+        t_val = torch.tensor(targets[indices_val], dtype=TorchUtils.data_type)
     else:
-        x_train = torch.tensor(data)
-        t_train = torch.tensor(targets)
-        x_val = torch.tensor(data)
-        t_val = torch.tensor(targets)
+        x_train = torch.tensor(data, dtype=TorchUtils.data_type)
+        t_train = torch.tensor(targets, dtype=TorchUtils.data_type)
+        x_val = torch.tensor(data, dtype=TorchUtils.data_type)
+        t_val = torch.tensor(targets, dtype=TorchUtils.data_type)
 
-    node = nn.Linear(1, 1)
+    node = nn.Linear(1, 1).type(TorchUtils.data_type)
     loss = torch.nn.BCEWithLogitsLoss()
     optimizer = torch.optim.Adam(node.parameters(), lr=lrn_rate, betas=(0.999, 0.999))
     best_accuracy = -1
@@ -68,7 +69,7 @@ def decision(data, targets, lrn_rate=0.007, mini_batch=8, max_iters=100, validat
                 with torch.no_grad():
                     w, b = [p.detach().numpy() for p in node.parameters()]
                     decision_boundary = -b / w
-                    predicted_class = node(torch.tensor(data)).detach().numpy() > 0.
+                    predicted_class = node(torch.tensor(data, dtype=TorchUtils.data_type)).detach().numpy() > 0.
         if verbose:
             looper.set_description(f' Epoch: {epoch}  Accuracy {acc}, loss: {cost.item()}')
 
