@@ -53,33 +53,35 @@ class GA:
     '''
 
     def __init__(self, configs, is_main=False):
+        self.is_main = is_main
         self.init_configs(configs, is_main)
         # Internal parameters and variables
         self._next_state = None
 
-    def init_configs(self, configs, is_main=False):
+    def init_configs(self, configs):
         self.configs = configs
         self.init_processor(configs['processor'])
         self.init_hyperparameters(configs['hyperparameters'])
         self.init_checkpoint_configs(configs['checkpoints'])
         self.default_output_dir = 'reproducibility'
-        if is_main:
-            self.init_dirs(configs['results_base_dir'], is_main)
+        if self.is_main:
+            self.init_dirs(configs['results_base_dir'])
 
     def init_dirs(self, base_dir, is_main=False):
         if 'experiment_name' in self.configs:
             main_folder_name = self.configs['experiment_name']
         else:
             main_folder_name = 'genetic_algorithm_data'
-        if is_main:
-            base_dir = create_directory_timestamp(base_dir,main_folder_name)
+        if self.is_main:
+            base_dir = create_directory_timestamp(base_dir, main_folder_name)
         else:
             base_dir = os.path.join(base_dir, main_folder_name)
             create_directory(base_dir)
         self.default_output_dir = os.path.join(base_dir, 'reproducibility')
         create_directory(self.default_output_dir)
-        self.default_checkpoints_dir = os.path.join(base_dir, 'checkpoints')
-        create_directory(self.default_checkpoints_dir)
+        if self.configs['checkpoints']['use_checkpoints']:
+            self.default_checkpoints_dir = os.path.join(base_dir, 'checkpoints')
+            create_directory(self.default_checkpoints_dir)
 
     def init_processor(self, configs):
         self.input_electrode_no = configs['input_electrode_no']
@@ -139,6 +141,8 @@ class GA:
             mask = In cases where the input is a waveform, the mask helps filtering the slopes of the waveform
         '''
 
+        if save_data and 'results_base_dir' in self.configs:
+            self.init_dirs(self.configs['results_base_dir'])
         # np.random.seed(seed=self.seed)
         if (validation_data[0] is not None) and (validation_data[1] is not None):
             print('======= WARNING: Validation data is not processed in GA =======')

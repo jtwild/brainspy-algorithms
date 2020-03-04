@@ -41,8 +41,9 @@ class GD:
         self.base_dir = base_dir
         self.default_output_dir = os.path.join(base_dir, 'reproducibility')
         create_directory(self.default_output_dir)
-        self.default_checkpoints_dir = os.path.join(base_dir, 'checkpoints')
-        create_directory(self.default_checkpoints_dir)
+        if self.configs['checkpoints']['use_checkpoints']:
+            self.default_checkpoints_dir = os.path.join(base_dir, 'checkpoints')
+            create_directory(self.default_checkpoints_dir)
 
     def init_processor(self):
         self.processor = get_processor(self.configs["processor"])
@@ -72,7 +73,7 @@ class GD:
         assert isinstance(inputs, torch.Tensor), f"Inputs must be torch.tensor, they are {type(inputs)}"
         assert isinstance(targets, torch.Tensor), f"Targets must be torch.tensor, they are {type(targets)}"
 
-        if save_data and 'results_base_dir' in self.configs['processor']['processor_type'] == 'dnpu':
+        if save_data and 'results_base_dir' in self.configs:
             self.init_dirs(self.configs['results_base_dir'])
         if 'debug' in self.processor.configs and self.processor.configs['debug'] and self.processor.configs['architecture'] == 'device_architecture':
             self.processor.init_dirs(self.configs['results_base_dir'])
