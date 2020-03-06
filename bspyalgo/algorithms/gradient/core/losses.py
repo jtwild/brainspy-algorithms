@@ -159,7 +159,7 @@ def entropy_abs(outputs, target=None):
     fixed_distance = 50     # Optimal results: I_i = I_fixed/ e
     return torch.sum( intervals * torch.log(intervals) )
 
-def entropy_hard_boundaries(outputs, target = None, boundaries=[-60, 30], use_softmax = False):
+def entropy_hard_boundaries(outputs, target = None, boundaries=[-150, 60], use_softmax = False):
     if target != None:
         raise Warning('This loss function does not use target values. Target ignored.')
     # First we sort the output, and clip the output to a fixed interval.
