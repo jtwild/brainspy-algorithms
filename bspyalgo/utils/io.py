@@ -3,7 +3,8 @@ Library that handles saving data results from the execution of the algorithm.
 '''
 import os
 import time
-import json
+#import json  # Old config files were in json
+import yaml   # For new config file format, conda install pyyaml
 import codecs
 import pickle
 import shutil
@@ -55,7 +56,7 @@ def save_torch(torch_model, file_path):
 
 def load_configs(file):
     object_text = codecs.open(file, 'r', encoding='utf-8').read()
-    return json.loads(object_text)
+    return yaml.safe_load(object_text)
 
 
 def save_configs(configs, file):
@@ -63,7 +64,7 @@ def save_configs(configs, file):
         for key in configs:
             if type(configs[key]) is np.ndarray:
                 configs[key] = configs[key].tolist()
-        json.dump(configs, f, indent=4)
+        yaml.dump(configs, f, indent=4, default_flow_style=False, sort_keys=False)
         f.close()
 
 
