@@ -19,6 +19,10 @@ def choose_loss_function(loss_fn_name):
     # Below is the sigmoid_distance loss function used to train outputs far away from each other
     elif loss_fn_name == 'sigmoid_distance':
         return sigmoid_distance
+    elif loss_fn_name == 'sigmoid_nn_distance':
+        return sigmoid_nn_distance
+    elif loss_fn_name == 'sigmoid_nns_distance':
+        return sigmoid_nns_distance
     elif loss_fn_name == 'entropy':
         return entropy
     elif loss_fn_name == 'entropy_abs':
@@ -92,12 +96,27 @@ def sigmoid_distance(outputs, target=None):
     # Then we can just transpose it and subtract from the original tensor to obtain all distances.
     # The diagonal will all have distance zero, which puts all values of 0.5 on the diagonal and causes a offset, but offsets are not a problem
     # The sigmoid is shifted 0.5 downwards to set its zero point correctly. Onyl positive values are used in its argument.
-    #TODO: Scale the sigmoid to prefer sepeartion upto... X nA.
     #scale = outputs.max() - outputs.min()  # normalizing scale, to prevent promotion of complete outward descent.
     #return -1*torch.mean( torch.sigmoid( torch.abs( (outputs - outputs.T) / scale)  *5 ) - 0.5 ) -torch.sigmoid( scale/100 )
     return -1*torch.mean( torch.sigmoid( torch.abs( (outputs - outputs.T) / 2 ) - 0.5 ) )
     #return torch.mean( torch.tanh( 1/ (torch.abs(outputs - outputs.T) +1e-10/2) ) )
     #return torch.zeros(1)
+
+def sigmoid_nn_distance(outputs, target=None):
+    # Sigmoid nearest neighbour distance: a squeshed version of a sum of all internal distances between points.
+    if target != None:
+        raise Warning('This loss function does not use target values. Target ignored.')
+    dist_nn = get_clamped_intervals(outputs, mode='single_nn')
+    return -1*torch.mean( torch.sigmoid(dist_nn / 2) - 0.5 )
+
+def sigmoid_nns_distance(outputs, target=None):
+    # Sigmoid nearest neighbour distance: a squeshed version of a sum of all internal distances between points.
+    if target != None:
+        raise Warning('This loss function does not use target values. Target ignored.')
+    dist = get_clamped_intervals(outputs, mode='double_nn')
+    divisor = 2  # Sigmoid argument gets divided by this
+    return -1*torch.mean( torch.sigmoid(dist / divisor) - 0.5 )
+
 
 def entropy(outputs, target=None, return_intervals=False):
     # Entropy E of a set of points S:
@@ -105,6 +124,7 @@ def entropy(outputs, target=None, return_intervals=False):
     # Entropy is maximized by an even distribution.
     # Warning: scaling the output in the sigmoid_distance loss functions had unwanted results: current range was reduced drasitcally.
     # The edge points have badly defined nearest neighbours, so for the two edgepoints, the single closest neighbour is taken twice.
+    #TODO: fix with the get_clamped_intervals functio? Edge points not possible though then, must be adjusted.
     outputs_sorted = outputs.sort(dim=0)[0]  # we need the sorted array for adjacent points.
     dist = torch.abs((outputs_sorted - outputs_sorted.T))
 
@@ -139,9 +159,33 @@ def entropy_abs(outputs, target=None):
     fixed_distance = 50     # Optimal results: I_i = I_fixed/ e
     return torch.sum( intervals * torch.log(intervals) )
 
-def entropy_hard_boundaries(outputs, target = None, boundaries=[-100, 0], use_softmax = False):
+def entropy_hard_boundaries(outputs, target = None, boundaries=[-60, 30], use_softmax = False):
     if target != None:
         raise Warning('This loss function does not use target values. Target ignored.')
+    # First we sort the output, and clip the output to a fixed interval.
+    # Get the intervals:
+    intervals = get_clamped_intervals(outputs, mode='intervals', boundaries=boundaries)
+
+    if use_softmax:
+        #raise Warning('Softmax is not yet tested.')
+        return torch.sum( torch.nn.functional.softmax(intervals, dim=0) * torch.nn.functional.log_softmax(intervals, dim=0) )
+        #return torch.nn.functional.cross_entropy(intervals[:,0], intervals[:,0])
+    # WHat about torch.nn.functional.cross_entropy(input, target) with targe=input=intervals ? According to documentation, this combines log_softmax and nll_loss = negative log likelyhood
+    else:
+        intervals_norm = intervals / (intervals.max() - intervals.min())  # boundary_high - boundary low determines the interval.
+        return torch.sum( intervals_norm * torch.log(intervals_norm+1e-10) )
+
+def entropy_distance(outputs, target=None):
+    # A combination of entropy and sigmoid distance, all taken on the intervals. Multiplied which each other to promote both
+    # a large distance absolute and relative
+    if target != None:
+        raise Warning('This loss function does not use target values. Target ignored.')
+    interval, interval_norm = entropy(outputs, return_intervals=True)[1:]
+    #TODO: update scaling of sigmoidu
+    return torch.mean( (torch.sigmoid(interval/2)-0.5) * interval_norm * torch.log(interval_norm))
+
+# Get clamped interals is called by other loss functions, it is a helper function.
+def get_clamped_intervals(outputs, mode, boundaries=[-352, 77]):
     # First we sort the output, and clip the output to a fixed interval.
     outputs_sorted = outputs.sort(dim=0)[0]
     outputs_clamped = outputs_sorted.clamp(boundaries[0], boundaries[1])
@@ -159,36 +203,24 @@ def entropy_hard_boundaries(outputs, target = None, boundaries=[-100, 0], use_so
     multiplier[0] = 1
     multiplier[-1] = 1
 
-    # Determine the intervals between the points
+    # Calculate the actual distance between points
     dist = (outputs_highside - outputs_lowside) * multiplier
-    intervals = dist[1:] + dist[:-1]
-    #dist_lowside = (outputs_highside - outputs_lowside) * multiplier
-    #dist_highside = (outputs_lowside - outputs_highside) * multiplier
-    #intervals = dist_highside[1:] + dist_lowside[:-1]   # The last point of dist_high is useless, just like the first poiint of distance low.
 
-    if use_softmax:
-        #raise Warning('Softmax is not yet tested.')
-        return torch.sum( torch.nn.functional.softmax(intervals, dim=0) * torch.nn.functional.log_softmax(intervals, dim=0) )
-        #return torch.nn.functional.cross_entropy(intervals[:,0], intervals[:,0])
-    # WHat about torch.nn.functional.cross_entropy(input, target) with targe=input=intervals ? According to documentation, this combines log_softmax and nll_loss = negative log likelyhood
-    else:
-        intervals_norm = intervals / (boundary_high - boundary_low)  # boundary_high - boundary low determines the interval.
-        return torch.sum( intervals_norm * torch.log(intervals_norm+1e-10) )
-    #outputs_clipped = -torch.relu( -(torch.relu(outputs_sorted - boundary_low ) + boundary_low) + boundary_high ) + boundary_high
-    #outputs_w_boundaries = torch.cat( (boundary_low, outputs_sorted, boundary_high), dim=0)
-    #intervals = entropy(outputs_w_boundaries, return_intervals=True)[1] [1:-1] /
-
-def entropy_distance(outputs, target=None):
-    # A combination of entropy and sigmoid distance, all taken on the intervals. Multiplied which each other to promote both
-    # a large distance absolute and relative
-    if target != None:
-        raise Warning('This loss function does not use target values. Target ignored.')
-    interval, interval_norm = entropy(outputs, return_intervals=True)[1:]
-    #TODO: update scaling of sigmoidu
-    return torch.mean( (torch.sigmoid(interval/2)-0.5) * interval_norm * torch.log(interval_norm))
+    if mode == 'single_nn':
+        # Only give nearest neighbour (single!) distance
+        dist_nns = torch.cat((dist[1:], dist[:-1]), dim=1) #both nearest neighbours
+        dist_nn = torch.min(dist_nns, dim=1) #only the closes nearest neighbour
+        return dist_nn[0] # entry 0 is the tensor, entry 1 are the indices
+    elif mode == 'double_nn':
+        return dist
+    elif mode == 'intervals':
+        # Determine the intervals between the points, up and down together.
+        intervals = dist[1:] + dist[:-1]
+        return intervals
 
 
-#  Testing a specific loss function
+
+#%%  Testing a specific loss function
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
 

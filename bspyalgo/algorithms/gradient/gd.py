@@ -133,7 +133,10 @@ class GD:
         if 'live_plot' in self.configs['checkpoints']:
             prediction = self.processor(data.results['inputs'])
             if self.configs['checkpoints']['live_plot'] is True:
-                fig, axs = plt.subplots(1,2, sharey=False)
+                if self.configs['processor']['network_type'] == 'IOnet':
+                    fig, axs = plt.subplots(1,3,sharey=False)
+                else:
+                    fig, axs = plt.subplots(1,2, sharey=False)
 
                 output_line = axs[0].plot( torch.zeros_like(prediction), prediction.detach().numpy(),  marker="_", linestyle='None')[0]
                 loss_line = axs[1].plot( 0,0 )[0]
@@ -144,6 +147,14 @@ class GD:
                 fig.suptitle('Live training plot')
                 axs[0].grid(which='major')
                 axs[1].grid(which='major')
+
+                if self.configs['processor']['network_type'] == 'IOnet':
+                    #In its current mode, only plots one dimension, so if different electrodes get trained, not all are plotted.
+                    input_lines = axs[2].plot(torch.zeros_like(x_train*self.processor.scaling + self.processor.offset).detach().numpy().T, \
+                                             (x_train*self.processor.scaling + self.processor.offset).detach().numpy().T, \
+                                             marker="_", linestyle='None', linewidth=10)
+                    axs[2].set_ylabel('Input voltage (V)')
+                    axs[2].grid(which='major')
                 fig.canvas.draw()
 
                 # Set as topmost figure. Does not seem to work reliable.
@@ -170,13 +181,19 @@ class GD:
             if error <= self.hyperparams['stop_threshold']:
                 print(f"Reached threshold error {self.hyperparams['stop_threshold']}. Stopping")
                 break
+
             # Update live plot of required:
             if 'live_plot' in self.configs['checkpoints']:
                 if self.configs['checkpoints']['live_plot'] is True and ( (epoch+1) % self.configs['checkpoints']['live_plot_interval'] ) == 0:
                     # Update data
                     loss_line.set_data(range(len(data.results['performance_history'][0:epoch])), data.results['performance_history'][0:epoch])
                     output_line.set_ydata(prediction.detach().numpy())
-
+                    if self.configs['processor']['network_type'] == 'IOnet':
+                        for i in range(len(input_lines)):
+                            input_line = input_lines[i]
+                            input_line.set_ydata(self.processor.input[i,:].detach().numpy())
+                        axs[2].relim()
+                        axs[2].autoscale_view(True,True,True)
                     # Rescale axes
                     axs[0].relim()
                     axs[0].autoscale_view(True,True,True)

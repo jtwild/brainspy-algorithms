@@ -35,7 +35,8 @@ class GDData:
 
     def judge(self):
         self.results['best_performance'] = self.results['performance_history'][-1]
-        if self.results['processor'].configs['platform'] == 'simulation' and self.results['processor'].configs['network_type'] == 'dnpu':
+        if self.results['processor'].configs['platform'] == 'simulation' and \
+           (self.results['processor'].configs['network_type'] == 'dnpu' or self.results['processor'].configs['network_type'] == 'IOnet'):
             self.set_result_as_numpy('control_voltages', self.results['processor'].get_control_voltages())
             self.results['inputs'] = TorchUtils.get_numpy_from_tensor(self.results['inputs'])
             # Distinguish between the scenario where the targets are not given, and the scenario where they are:
@@ -43,6 +44,8 @@ class GDData:
                 self.results['targets'] = TorchUtils.get_numpy_from_tensor(self.results['targets'])
             else:
                 self.results['targets'] = None
+        #if self.results['processor'].configs['network_type'] == 'IOnet':
+        #    self.results['input_offset'], self.results['input_scaling'] =  get_input_scaling
         # self.print_results()
 
     def print_results(self):  # print(best_output.shape,self.target_wfm.shape)
