@@ -2,7 +2,7 @@
 Library that handles saving data results from the execution of the algorithm.
 '''
 import os
-import time
+from datetime import datetime # updated to datetime instead of time because time package does not support milliseconds.
 #import json  # Old config files were in json
 import yaml   # For new config file format, conda install pyyaml
 import codecs
@@ -82,8 +82,8 @@ def create_directory(path, overwrite=False):
 
 
 def create_directory_timestamp(path, name, overwrite=False):
-    datetime = time.strftime("%Y_%m_%d_%H%M%S")
-    path = os.path.join(path, name + '_' + datetime)
+    time = datetime.utcnow().strftime("%Y_%m_%d_%H%M%S.%f")[:-4]
+    path = os.path.join(path, name + '_' + time)
     return create_directory(path, overwrite=overwrite)
 
 

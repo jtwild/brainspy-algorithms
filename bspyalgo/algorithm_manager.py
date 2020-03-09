@@ -19,24 +19,24 @@ from bspyalgo.utils.io import load_configs
 # TODO: Target wave form as argument can be left out if output dimension is known internally
 
 
-def get_algorithm(configs):
+def get_algorithm(configs, is_main=False):
     if(isinstance(configs, str)):       # Enable to load configs as a path to configurations or as a dictionary
         configs = load_configs(configs)
 
     if configs['algorithm'] == 'genetic':
         return GA(configs)
     elif configs['algorithm'] == 'gradient_descent':
-        return get_gd(configs)
+        return get_gd(configs, is_main)
     else:
         raise NotImplementedError(f"Algorithm {configs['algorithm']} is not recognised. Please try again with 'genetic' or 'gradient_descent'")
 
 
-def get_gd(configs):
+def get_gd(configs, is_main=False):
     if configs['processor']['platform'] == 'hardware':
         raise NotImplementedError('Hardware platform not implemented')
         # TODO: Implement the lock in algorithm class
     elif configs['processor']['platform'] == 'simulation':
-        return GD(configs)
+        return GD(configs, is_main=is_main)
     else:
         raise NotImplementedError('Platform not implemented')
 
