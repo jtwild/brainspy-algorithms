@@ -54,7 +54,7 @@ class GA:
 
     def __init__(self, configs, is_main=False):
         self.is_main = is_main
-        self.init_configs(configs, is_main)
+        self.init_configs(configs)
         # Internal parameters and variables
         self._next_state = None
 
