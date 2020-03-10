@@ -150,8 +150,8 @@ class GD:
 
                 if self.configs['processor']['network_type'] == 'IOnet':
                     #In its current mode, only plots one dimension, so if different electrodes get trained, not all are plotted.
-                    input_lines = axs[2].plot(torch.zeros_like(x_train*self.processor.scaling + self.processor.offset).detach().numpy().T, \
-                                             (x_train*self.processor.scaling + self.processor.offset).detach().numpy().T, \
+                    input_lines = axs[2].plot(torch.zeros_like(self.processor.input).detach().numpy().T, \
+                                             (self.processor.input).detach().numpy().T, \
                                              marker="_", linestyle='None', linewidth=10)
                     axs[2].set_ylabel('Input voltage (V)')
                     axs[2].grid(which='major')
