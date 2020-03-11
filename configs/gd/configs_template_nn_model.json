@@ -14,8 +14,7 @@
     "processor": {
               "architecture": "single_device",
               "platform": "simulation",
-              "simulation_type": "neural_network",
-              "network_type": "nn_model",
+              "processor_type": "surrogate",
               "torch_model_dict": {
                                 "hidden_sizes": [2],
                                 "D_in": 2,

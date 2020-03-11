@@ -54,7 +54,7 @@ class GA:
 
     def __init__(self, configs, is_main=False):
         self.is_main = is_main
-        self.init_configs(configs, is_main)
+        self.init_configs(configs)
         # Internal parameters and variables
         self._next_state = None
 
@@ -130,6 +130,9 @@ class GA:
     def get_torch_model_path(self):
         return self.configs['ga_evaluation_configs']['torch_model_path']
 
+    def reset(self):
+        self.processor.reset()
+
 # %% Method implementing evolution
 # TODO: Implement feeding the validation_data and mask as optional kwargs
 
@@ -140,7 +143,7 @@ class GA:
             validation_data = In some cases, it is required to provide the validation data in the form of (training_data, validation_data)
             mask = In cases where the input is a waveform, the mask helps filtering the slopes of the waveform
         '''
-
+        self.reset()
         if save_data and 'results_base_dir' in self.configs:
             self.init_dirs(self.configs['results_base_dir'])
         # np.random.seed(seed=self.seed)
