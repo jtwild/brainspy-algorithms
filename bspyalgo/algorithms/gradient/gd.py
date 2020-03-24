@@ -67,6 +67,7 @@ class GD:
 
 # TODO: Implement feeding the validation_data and mask as optional kwargs
 
+
     def optimize(self, inputs, targets, validation_data=(None, None), data_info=None, mask=None, save_data=True):
         """Wraps trainer function in sgd_torch for use in algorithm_manager.
         """
@@ -82,9 +83,17 @@ class GD:
         if data_info is not None:
             # This case is only used when using the GD for creating a new model
             print('Using the Gradient Descent for Surrogate Model Generation.')
-            self.processor.info = {}
-            self.processor.info['data_info'] = data_info
-            self.processor.info['smg_configs'] = self.configs
+            try:
+                if self.processor.info is not None:
+                    print('The model is being retrained as a surrogate model')
+                    self.processor.info['data_info_retrain'] = data_info
+                    self.processor.info['smg_configs_retrain'] = self.configs
+            except AttributeError:
+                self.processor.info = {}
+                print('The model has been generated from scratch as a torch_model')
+                self.processor.info['data_info'] = data_info
+                self.processor.info['smg_configs'] = self.configs
+
         data = GDData(inputs, targets, self.hyperparams['nr_epochs'], self.processor, validation_data, mask=mask)
 
         if validation_data[0] is not None and validation_data[1] is not None:
@@ -110,7 +119,7 @@ class GD:
             # with torch.no_grad():
             data.results['performance_history'][epoch, 0], prediction_training, data.results['target_indices'] = self.evaluate_training_error(x_val, x_train, y_train)
             data.results['performance_history'][epoch, 1], prediction_validation = self.evaluate_validation_error(x_val, y_val)
-            if (epoch + 1) % self.configs['checkpoints']['save_interval'] == 0:
+            if self.configs['checkpoints']['use_checkpoints'] and ((epoch + 1) % self.configs['checkpoints']['save_interval'] == 0):
                 save('torch', os.path.join(self.default_checkpoints_dir, f'checkpoint.pt'), data=self.processor)
         #    if epoch % self.hyperparams['save_interval'] == 0:
             training_error = data.results['performance_history'][epoch, 0]
