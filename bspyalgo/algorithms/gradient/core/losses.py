@@ -1,4 +1,5 @@
 import torch
+from bspyproc.utils.pytorch import TorchUtils
 
 
 def choose_loss_function(loss_fn_name):
@@ -16,11 +17,22 @@ def choose_loss_function(loss_fn_name):
         return fisher_added_corr
     elif loss_fn_name == 'fisher_multipled_corr':
         return fisher_multipled_corr
-    # Below is the sigmoid_distance loss function used to train outputs far away from each other
-    elif loss_fn_name == 'sigmoid_distance':
-        return sigmoid_distance
+    elif loss_fn_name == 'bce':
+        bce = BCELossWithSigmoid()
+        bce.cuda(TorchUtils.get_accelerator_type()).to(TorchUtils.data_type)
+        return bce
     else:
         raise NotImplementedError(f"Loss function {loss_fn_name} is not recognized!")
+
+
+class BCELossWithSigmoid(torch.nn.BCELoss):
+
+    def __init__(self, weight=None, size_average=None, reduce=None, reduction='mean', activation=torch.nn.Sigmoid()):
+        super(BCELossWithSigmoid, self).__init__(weight=weight, size_average=size_average, reduce=reduce, reduction=reduction)
+        self.activation = activation
+
+    def forward(self, output, target):
+        return super(BCELossWithSigmoid, self).forward(self.activation(output[:, 0]), target)
 
 
 def corrsig(output, target):
@@ -73,40 +85,3 @@ def fisher_multipled_corr(output, target):
     corr = torch.mean((output - torch.mean(output)) * (target - torch.mean(target))) / \
         (torch.std(output) * torch.std(target) + 1e-10)
     return (1 - corr) * (s0 + s1) / mean_separation
-
-
-def sigmoid_distance(outputs, target=None):
-    # Sigmoid distance: a squeshed version of a sum of all internal distances between points.
-    if target != None:
-        raise Warning('This loss function does not use target values. Target ignored.')
-    # Expecting a torch.tensor with a list of single outputs
-    # Then we can just transpose it and subtract from the original tensor to obtain all distances.
-    # The diagonal will all have distance zero, which puts all values of 0.5 on the diagonal and causes a offset, but offsets are not a problem
-    # The sigmoid is shifted 0.5 downwards to set its zero point correctly. Onyl positive values are used in its argument.
-    #TODO: Scale the sigmoid to prefer sepeartion upto... X nA.
-    return -1*torch.mean( torch.sigmoid( torch.abs(outputs - outputs.T) /5 ) - 0.5 )
-    #return torch.mean( torch.tanh( 1/ (torch.abs(outputs - outputs.T) +1e-10/2) ) )
-    #return torch.zeros(1)
-
-
-#  Testing a specific loss function
-if __name__ == '__main__':
-    import matplotlib.pyplot as plt
-
-    num_tests = 40
-    loss = torch.zeros([num_tests])
-    num_samples = 2**3
-    spacing = torch.logspace(0.1,1.6,num_tests)
-
-    for i in range(num_tests):
-        limit = spacing[i] * num_samples
-        outputs_temp = torch.linspace(0,limit, num_samples)
-        outputs = torch.zeros([1,num_samples])
-        for j in range(num_samples):
-            outputs[0,j] = outputs_temp[j]
-        targets = []
-        loss[i] = sigmoid_distance(outputs)
-
-    plt.plot(spacing, loss)
-    plt.ylabel('Loss')
-    plt.xlabel('Spacing between points')

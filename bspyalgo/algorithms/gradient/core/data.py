@@ -1,3 +1,4 @@
+import torch
 import numpy as np
 from bspyproc.processors.simulation.dopanet import DNPU
 from bspyproc.utils.pytorch import TorchUtils
@@ -35,10 +36,17 @@ class GDData:
 
     def judge(self):
         self.results['best_performance'] = self.results['performance_history'][-1]
-        if self.results['processor'].configs['platform'] == 'simulation' and self.results['processor'].configs['network_type'] == 'dnpu':
+        if self.results['processor'].configs['processor_type'] == 'dnpu':
             self.set_result_as_numpy('control_voltages', self.results['processor'].get_control_voltages())
-            self.results['inputs'] = TorchUtils.get_numpy_from_tensor(self.results['inputs'])
-            self.results['targets'] = TorchUtils.get_numpy_from_tensor(self.results['targets'])
+
+    def get_results_as_numpy(self):
+        numpy_results = {}
+        for key in self.results.keys():
+            if isinstance(self.results[key], torch.Tensor):
+                numpy_results[key] = self.results[key].detach().cpu().numpy()
+            else:
+                numpy_results[key] = self.results[key]
+        return numpy_results
         # self.print_results()
 
     def print_results(self):  # print(best_output.shape,self.target_wfm.shape)

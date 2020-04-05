@@ -5,55 +5,97 @@ Created on Fri Jun  1 11:42:27 2018
 
 @author: hruiz
 """
-
+from __future__ import generator_stop
 import numpy as np
+import torch.nn as nn
+import torch
+from matplotlib import pyplot as plt
+from more_itertools import grouper
+from tqdm import trange
+from bspyproc.utils.pytorch import TorchUtils
 
 
-def perceptron(input_waveform, target_waveform, tolerance=0.01, max_iter=200):
-    # Assumes that the waveform input_waveform and the target_waveform have the shape (n_total,1)
-    # Normalize the data; it is assumed that the target_waveform has binary values
-    input_waveform = (input_waveform - np.mean(input_waveform)) / np.std(input_waveform)
-    n_total = len(input_waveform)
-    weights_ = np.random.randn(2, 1)  # np.zeros((2,1))
-    inp = np.concatenate([np.ones_like(input_waveform), input_waveform], axis=1)
-    shuffle = np.random.permutation(len(inp))
-
-    x = inp[shuffle]
-    y = target_waveform[shuffle]
-
-    error = np.inf
-    j = 0
-    while (error > tolerance) and (j < max_iter):
-
-        for i in range(len(x)):
-            a = np.dot(weights_.T, x[i])
-            delta = y[i] - f(a)
-            weights_ = weights_ - delta * x[i][:, np.newaxis]
-
-        predict = np.array(list(map(f, np.dot(x, weights_))))
-        predict = predict[:, np.newaxis]
-        error = np.mean(np.abs(y - predict))
-        j += 1
-#        print('Prediction Error: ',error, ' in ', j,' iters')
-
-    buffer = np.zeros_like(y)
-    buffer[y == predict] = 1
-    n_correct = np.sum(buffer)
-    accuracy_ = n_correct / n_total
-
-#    print('Fraction of iterations used: ', j/max_iter)
-#    pdb.set_trace()
-    corrcoef = np.corrcoef(y.T, x[:, 1].T)[0, 1]
-    if accuracy_ > 0.9 and corrcoef < 0:
-        print('Weight is negative', weights_[0], ' and correlation also: ', corrcoef)
-        accuracy_ = 0.
-        print('Accuracy is set to zero!')
-
-    return accuracy_, weights_, (shuffle, predict)
+def batch_generator(nr_samples, batch):
+    batches = grouper(np.random.permutation(nr_samples), batch)
+    while True:
+        try:
+            indices = list(next(batches))
+            if None in indices:
+                indices = [index for index in indices if index is not None]
+            yield torch.tensor(indices, dtype=torch.int64)
+        except StopIteration:
+            return
 
 
-def f(x):
-    return float(x < 0)
+def decision(data, targets, lrn_rate=0.007, mini_batch=8, max_iters=100, validation=False, verbose=True):
+
+    if validation:
+        n_total = len(data)
+        assert n_total > 10, "Not enough data, we assume you have at least 10 points"
+        n_val = int(n_total * 0.1)
+        shuffle = np.random.permutation(n_total)
+        indices_train = shuffle[n_val:]
+        indices_val = shuffle[:n_val]
+        x_train = torch.tensor(data[indices_train], dtype=TorchUtils.data_type)
+        t_train = torch.tensor(targets[indices_train], dtype=TorchUtils.data_type)
+        x_val = torch.tensor(data[indices_val], dtype=TorchUtils.data_type)
+        t_val = torch.tensor(targets[indices_val], dtype=TorchUtils.data_type)
+    else:
+        x_train = torch.tensor(data, dtype=TorchUtils.data_type)
+        t_train = torch.tensor(targets, dtype=TorchUtils.data_type)
+        x_val = torch.tensor(data, dtype=TorchUtils.data_type)
+        t_val = torch.tensor(targets, dtype=TorchUtils.data_type)
+
+    node = nn.Linear(1, 1).type(TorchUtils.data_type)
+    loss = torch.nn.BCEWithLogitsLoss()
+    optimizer = torch.optim.Adam(node.parameters(), lr=lrn_rate, betas=(0.999, 0.999))
+    best_accuracy = -1
+    looper = trange(max_iters, desc='Calculating accuracy')
+    for epoch in looper:
+        for mb in batch_generator(len(x_train), mini_batch):
+            x_i, t_i = x_train[mb], t_train[mb]
+            optimizer.zero_grad()
+            y_i = node(x_i)
+            cost = loss(y_i, t_i)
+            cost.backward()
+            optimizer.step()
+        with torch.no_grad():
+            y = node(x_val)
+            labels = y > 0.
+            correct_labeled = torch.sum(labels == t_val).detach().numpy()
+            acc = 100. * correct_labeled / len(t_val)
+            if acc > best_accuracy:
+                best_accuracy = acc
+                with torch.no_grad():
+                    w, b = [p.detach().numpy() for p in node.parameters()]
+                    decision_boundary = -b / w
+                    predicted_class = node(torch.tensor(data, dtype=TorchUtils.data_type)).detach().numpy() > 0.
+        if verbose:
+            looper.set_description(f' Epoch: {epoch}  Accuracy {acc}, loss: {cost.item()}')
+
+    return best_accuracy, predicted_class, decision_boundary
+
+
+def perceptron(input_waveform, target_waveform, plot=None):
+    # Assumes that the input_waveform and the target_waveform have the shape (n_total,1)
+    # Normalizes the data; it is assumed that the target_waveform has binary values
+    input_waveform = (input_waveform - np.mean(input_waveform, axis=0)) / np.std(input_waveform, axis=0)
+    _accuracy, predicted_labels, threshold = decision(input_waveform, target_waveform)
+    if plot:
+        plt.figure()
+        plt.title(f'Accuracy: {_accuracy:.2f} %')
+        plt.plot(input_waveform, label='Norm. Waveform')
+        plt.plot(predicted_labels, '.', label='Predicted labels')
+        plt.plot(target_waveform, 'g', label='Targets')
+        plt.plot(np.arange(len(predicted_labels)),
+                 np.ones_like(predicted_labels) * threshold, 'k:', label='Threshold')
+        plt.legend()
+        if plot == 'show':
+            plt.show()
+        else:
+            plt.savefig(plot)
+            plt.close()
+    return _accuracy, predicted_labels, threshold
 
 
 def corr_coeff(x, y):
@@ -62,41 +104,29 @@ def corr_coeff(x, y):
 # TODO: use data object to get the accuracy (see corr_coeff above)
 
 
-def accuracy(best_output, target_waveforms, mask):
-    y = best_output[mask][:, np.newaxis]
-    trgt = target_waveforms[mask][:, np.newaxis]
-    accuracy, _, _ = perceptron(y, trgt)
-    return accuracy
+def accuracy(best_output, target_waveforms, plot=None):
+    if len(best_output.shape) == 1:
+        y = best_output[:, np.newaxis]
+    else:
+        y = best_output
+    if len(target_waveforms.shape) == 1:
+        trgt = target_waveforms[:, np.newaxis]
+    else:
+        trgt = target_waveforms
+    acc, _, _ = perceptron(y, trgt, plot=plot)
+    return acc
 
 
 if __name__ == '__main__':
-    from matplotlib import pyplot as plt
-    # XOR as target_waveform
-    target_waveform = np.zeros((800, 1))
-    target_waveform[200:600] = 1
 
-    # Create wave form
-    noise = 0.05
-    output = np.zeros((800, 1))
-    output[200:600] = 1  # XOR
-#    output[600:] = 1.75
-    input_waveform = output + noise * np.random.randn(len(target_waveform), 1)
+    import pickle as pkl
 
-    accuracy, weights, predicted = perceptron(input_waveform, target_waveform)
+    data_dict = pkl.load(open("tmp/input/best_output_ring_example.pkl", 'rb'))
+    BEST_OUTPUT = data_dict['best_output']
+    TARGETS = np.zeros_like(BEST_OUTPUT)
+    TARGETS[int(len(BEST_OUTPUT) / 2):] = 1
+    ACCURACY, LABELS, THRESHOLD = perceptron(BEST_OUTPUT, TARGETS, plot='show')
 
-    plt.figure()
-    plt.plot(target_waveform)
-    plt.plot(input_waveform, '.')
-    plt.plot(np.arange(len(target_waveform)), (-weights[0] / weights[1]) * np.ones_like(target_waveform))
-    plt.plot(predicted[0], predicted[1], 'xk')
-    plt.show()
-
-    nr_examples = 100
-    accuracy = np.zeros((nr_examples,))
-    for l in range(nr_examples):
-        accuracy[l], weights, _ = perceptron(input_waveform, target_waveform)
-        print(f'Prediction Accuracy: {accuracy[l]} and weights:{weights}')
-
-    plt.figure()
-    plt.hist(accuracy, 100)
-    plt.show()
+    MASK = np.ones_like(TARGETS, dtype=bool)
+    ACC = accuracy(BEST_OUTPUT, TARGETS)
+    print(f'Accuracy for best output: {ACC}')
