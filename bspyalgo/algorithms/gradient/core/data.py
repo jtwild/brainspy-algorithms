@@ -27,7 +27,7 @@ class GDData:
     # TODO: Create an update function to store the history of the control voltages and output
     # def update(self, next_sate):
     def set_result_as_numpy(self, result_key, result):
-        self.results[result_key] = TorchUtils.get_numpy_from_tensor(result)
+        self.results[result_key] = TorchUtils.get_numpy_from_tensor(result).copy()
 
     def judge(self):
         self.results['best_performance'] = self.results['performance_history'][-1]
