@@ -1,6 +1,7 @@
 # TODO: ''' '''
 import torch
 import os
+import matplotlib.pyplot as plt # For liveplotting
 from tqdm import trange
 from bspyproc.bspyproc import get_processor
 from bspyalgo.utils.io import save, create_directory, create_directory_timestamp
@@ -15,6 +16,7 @@ class GD:
     Inputs and targets is assumed to be partitioned in training and validation sets.
     If saving is needed use key in config file : "results_path": "tmp/output/models/nn_test/"
     @author: hruiz
+    Edited by Jochem for live plot
     """
 
     def __init__(self, configs, loss_fn=torch.nn.MSELoss(), is_main=False):
@@ -27,6 +29,10 @@ class GD:
             self.loss_fn = loss_fn
 
         self.init_processor()
+        # Live plot parameters:
+        self.live_plot = configs['live_plot'] # Boolean
+        self.live_plot_interval = configs['live_plot_interval'] # Integer, number of epochs between update
+        assert type(self.live_plot) is bool and type(self.live_plot_interval) is int
 
     def init_dirs(self, base_dir):
         if 'experiment_name' in self.configs:
@@ -137,6 +143,10 @@ class GD:
         x_train = data.results['inputs']
         y_train = data.results['targets']
         looper = trange(self.hyperparams['nr_epochs'], desc='Initialising')
+        # Initialize live_plot if required:
+        if self.live_plot is True:
+            self.init_live_plot(x_train, y_train)
+        # Start the training
         for epoch in looper:
             # self.processor.train()
             self.train_step(x_train, y_train)
@@ -153,6 +163,9 @@ class GD:
             if error <= self.hyperparams['stop_threshold']:
                 print(f"Reached threshold error {self.hyperparams['stop_threshold']}. Stopping")
                 break
+            # Update live plot if required:
+            if (self.live_plot is True) and (((epoch+1) % self.live_plot_interval) == 0):
+                self.update_live_plot(x_train, y_train, prediction, data.results['performance_history'][0:epoch])
         data.set_result_as_numpy('best_output', prediction)
         return data
 
@@ -191,3 +204,57 @@ class GD:
             prediction = self.processor(x_sampled)
         target = y_train[target_indices]
         return self.loss_fn(prediction, target).item(), prediction, target_indices
+
+    def init_live_plot(self, inputs, targets):
+#        prediction = self.processor(data.results['inputs'])
+        if self.configs['processor']['processor_type'] == 'IOnet':
+            self.live_fig, self.live_axs = plt.subplots(1,3,sharey=False) # An extra subplot figure to show training scaled inputs
+        else:
+            self.live_fig, self.live_axs = plt.subplots(1,2, sharey=False)
+
+#        self.output_line = self.live_axs[0].plot( targets,  marker="_", linestyle='None')[0]
+#        self.target_line = self.live_axs[0].plot( targets,  marker="_", linestyle='None')[0]
+        self.output_line = self.live_axs[0].step(range(len(targets)), targets, where='mid' )[0]
+        self.target_line = self.live_axs[0].step(range(len(targets)), targets, where='mid' )[0]
+        self.loss_line = self.live_axs[1].plot( 0,0 )[0]
+
+        self.live_axs[0].set_ylabel('Output curent (nA)')
+        self.live_axs[1].set_ylabel('Loss')
+        self.live_axs[1].set_xlabel('Epoch')
+        self.live_fig.suptitle('Live training plot')
+        self.live_axs[0].grid(which='major')
+        self.live_axs[1].grid(which='major')
+
+        if self.configs['processor']['processor_type'] == 'IOnet':
+            #In its current mode, only plots one dimension, so if different electrodes get trained, not all are plotted.
+            self.live_input_lines = self.live_axs[2].plot(torch.zeros_like(x*self.processor.scaling + self.processor.offset).T, \
+                                     (x*self.processor.scaling + self.processor.offset).T, \
+                                     marker="_", linestyle='None', linewidth=10)
+            self.live_axs[2].set_ylabel('Input voltage (V)')
+            self.live_axs[2].grid(which='major')
+        self.live_fig.canvas.draw()
+
+        # Set as topmost figure. Does not seem to work reliable.
+        self.live_fig.canvas.manager.window.activateWindow()
+        self.live_fig.canvas.manager.window.raise_()
+        #plt.pause(5), print('Pausing 5 seconds for recording. Disable via gd.py')
+
+    def update_live_plot(self, inputs, targets, outputs, loss_history):
+
+        self.loss_line.set_data(range(len(loss_history)), loss_history)
+        self.output_line.set_ydata(outputs.detach().numpy())
+        self.target_line.set_ydata(targets*(outputs.max() - outputs.min()) + outputs.min())
+        if self.configs['processor']['processor_type'] == 'IOnet':
+            for i in range(len(self.input_lines)):
+                self.input_lines[i].set_ydata(inputs)
+            self.live_axs[2].relim()
+            self.live_axs[2].autoscale_view(True,True,True)
+        # Rescale axes
+        self.live_axs[0].relim()
+        self.live_axs[0].autoscale_view(True,True,True)
+        self.live_axs[1].relim()
+        self.live_axs[1].autoscale_view(True,True,True)
+
+        # Update plots
+        self.live_fig.canvas.draw()
+        self.live_fig.canvas.flush_events()
