@@ -27,7 +27,7 @@ def batch_generator(nr_samples, batch):
             return
 
 
-def decision(data, targets, lrn_rate=0.007, mini_batch=8, max_iters=100, validation=False, verbose=True):
+def decision(data, targets, lrn_rate=0.007, mini_batch=8, max_iters=1000, validation=False, verbose=True):
 
     if validation:
         n_total = len(data)
