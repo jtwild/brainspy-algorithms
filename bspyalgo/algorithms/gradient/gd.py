@@ -63,6 +63,7 @@ class GD:
     def reset(self):
         self.init_optimizer()
         self.processor.reset()
+        self.reset_live_plot()
 
     def init_optimizer(self):
         self.optimizer = get_optimizer(filter(lambda p: p.requires_grad, self.processor.parameters()), self.hyperparams)
@@ -258,3 +259,9 @@ class GD:
         # Update plots
         self.live_fig.canvas.draw()
         self.live_fig.canvas.flush_events()
+
+    def reset_live_plot(self):
+        # We have to explicitly check existince because first and final gate are ignored, and
+        # do not create a live fig
+        if 'self.live_fig' in locals():
+            plt.close(fig=self.live_fig)
