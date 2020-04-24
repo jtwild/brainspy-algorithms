@@ -33,6 +33,8 @@ class GD:
         self.live_plot = configs['live_plot'] # Boolean
         self.live_plot_interval = configs['live_plot_interval'] # Integer, number of epochs between update
         assert type(self.live_plot) is bool and type(self.live_plot_interval) is int
+        # Auto stopping parameters
+        self.init_early_stop()
 
     def init_dirs(self, base_dir):
         if 'experiment_name' in self.configs:
@@ -167,6 +169,11 @@ class GD:
             # Update live plot if required:
             if (self.live_plot is True) and (((epoch+1) % self.live_plot_interval) == 0):
                 self.update_live_plot(x_train, y_train, prediction, data.results['performance_history'][0:epoch])
+            # Check early stopping convergence criterium if required
+            if self.use_early_stopping is True:
+                if self.update_early_stop(data.results['performance_history'], epoch):
+                    # update_early_stop(..) returns True/False depending on whether we should stop.
+                    break
         data.set_result_as_numpy('best_output', prediction)
         return data
 
@@ -265,3 +272,32 @@ class GD:
         # do not create a live fig
         if 'self.live_fig' in locals():
             plt.close(fig=self.live_fig)
+
+    def init_early_stop(self):
+        # Load parameters required for early stopping function
+        # Check if auto stopping values exist:
+        if 'early_stopping' in self.configs:
+            self.use_early_stopping = self.configs['early_stopping']['use_early_stopping']
+            self.min_stopping_epochs = self.configs['early_stopping']['min_stopping_epochs']
+            self.stopping_patience = self.configs['early_stopping']['stopping_patience']
+            self.stopping_criterium = self.configs['early_stopping']['stopping_criterium']
+            if self.stopping_criterium == 'auto':
+                self.auto_stopping_fraction = self.configs['early_stopping']['auto_stopping_fraction']
+            else:
+                self.min_stopping_spread = self.stopping_criterium
+        else:
+            self.use_early_stopping = False
+
+
+    def update_early_stop(self, performance_history, epoch):
+        stop = False # by default, assume we continue
+        # Check if enough epochs have been made:
+        if epoch > self.min_stopping_epochs:
+            # for auto stopping, compare to existing spread in loss
+            if self.stopping_criterium == 'auto':
+                self.min_stopping_spread = (performance_history.max() - performance_history.min()) * self.auto_stopping_fraction
+            # Only stops on convergence. Does not stop when loss increases.
+            # Could be changed to do so, but for now, it is a design choice
+            stop = (performance_history[epoch-self.stopping_patience:epoch].max() -
+                    performance_history[epoch-self.stopping_patience:epoch].min()) < self.min_stopping_spread
+        return stop
