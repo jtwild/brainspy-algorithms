@@ -70,6 +70,8 @@ def decision(data, targets, lrn_rate=0.007, mini_batch=8, max_iters=1000, valida
                     w, b = [p.detach().numpy() for p in node.parameters()]
                     decision_boundary = -b / w
                     predicted_class = node(torch.tensor(data, dtype=TorchUtils.data_type)).detach().numpy() > 0.
+                if best_accuracy == 100:
+                    break
         if verbose:
             looper.set_description(f' Epoch: {epoch}  Accuracy {acc}, loss: {cost.item()}')
 
